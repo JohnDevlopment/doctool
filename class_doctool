@@ -1,0 +1,339 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Digest::MD5 qw(md5_hex);
+use Doctool::Property;
+use Doctool::Util qw(append echo min max str);
+use Scalar::Util qw(looks_like_number);
+use v5.10;
+
+my %g_tag_keys = qw(desc description note note);
+my %g_sections;
+my $g_index;
+my $g_sec_tags = qr/desc|note/;
+
+# Usage: _delete_block_attr text attr value
+sub _delete_block_attr ($$$) {
+    my ($text,$attr,$value) = @_;
+    my $block = qr/section|article|div|table|header/;
+    $text =~ s{
+        (
+            ^              # Spaces from the start
+            [ \t]*         # leading to the block
+            <($block)      # $2 = block
+            \s+            # One or more spaces
+            $attr="$value" # Specific attribute
+            (?:.|\n)*?     # Any number lines
+            </\2>          # Matching end tag
+            [ \t]*         # Trailing spaces
+            \n?            # Newline
+        )
+    }{
+        my $key = md5_hex($1);
+        "<!-- " . $key . " -->\n";
+    }emx;
+
+    return $text;
+}
+
+sub delete_block_class ($$) {
+    return _delete_block_attr($_[0], 'class', $_[1]);
+}
+
+# Usage: delete_block string, id
+sub delete_block_id ($$) {
+    return _delete_block_attr($_[0], 'class', $_[1]);
+}
+
+# Usage: _nextline string index
+sub _nextline($\$) {
+    my ($string,$index) = @_;
+    my $end = length($string) - 1;
+    my $i = index($string, "\n", $$index);
+    if ($i < 0) {
+        $$index = $end;
+    } else {
+        $$index = min($i + 1, $end);
+    }
+}
+
+# Usage: _prevline string index
+sub _prevline ($\$) {
+    my ($string,$index) = @_;
+    my $i = rindex($string, "\n", $$index);
+    if (abs($i - $$index) == 1) {
+        $i = rindex($string, "\n", $$index - 2);
+    }
+    $$index = $i + 1;
+}
+
+# Usage: _getline string index
+sub _getline ($\$) {
+    # $start is a reference to a scalar
+
+    # String and starting index
+    my ($string,$start) = @_;
+
+    # End of line (or end of string in case of no newline)
+    my $end = index($string, "\n", $$start);
+    if ($end < 0) {
+        $end = length($string);
+    }
+
+    my $result = substr($string, $$start, $end - $$start);
+    $$start = $end + 1; # Advance index to the next line
+    return $result;
+}
+
+# Usage: _printarray string array
+sub _printarray {
+    my $name = shift;
+    my (@ar) = @_;
+    print qq/Dump of array "$name"\n/;
+    my $i = 0;
+    foreach (@ar) {
+        print "index $i : $_\n";
+        ++$i;
+    }
+}
+
+# Usage: _printhash string hash
+sub _printhash {
+    my $name = shift;
+    my (%hash) = @_;
+    print qq/Dump of hash "$name"\n/;
+    foreach my $key (keys %hash) {
+        my $value = $hash{$key};
+        print qq/"$key" : $value\n/;
+    }
+}
+
+# Main subroutine
+# Note: $g_index is read and modified throughout each subroutine used by Doctool.
+sub Doctool {
+    my $text = shift or die "Needs a string argument";
+
+    # Reset index
+    $g_index = 0;
+
+    # Clear global hash
+    %g_sections = ();
+
+    # Standardize line endings:
+    $text =~ s{\r\n}{\n}g; 	# DOS to Unix
+    $text =~ s{\r}{\n}g; 	# Mac to Unix
+
+    # Require that the very first line be a comment with two "#" and text
+    die 'No documentation found for this class' unless ($text =~ /^##\s*.+/);
+
+    $g_sections{'header'} = _GetHeader($text);
+    $g_sections{'properties'} = _GetProperties($text);
+
+    return _BuildHTML();
+}
+
+sub _BuildHTML {
+    my $html = '';
+    open(HANDLE, '<', './template.html') or die $!;
+    while (<HANDLE>) {
+        $html = $html . $_;
+    }
+    close(HANDLE);
+
+    # Parse header section
+    my %header = %{$g_sections{'header'}};
+    $html =~ s/\[CLASSNAME\]/$header{'class'}/g;
+    $html =~ s/\[BRIEF\]/$header{'brief'}/;
+
+    {
+        # Description
+        my $text = '';
+        for my $i (0 .. $header{'description'}->$#*) {
+            $text = $text . '<p>' . $header{'description'}[$i] . '</p>';
+        }
+
+        if (exists $header{'note'}) {
+            my $buf = '';
+            for my $i (0 .. $header{'note'}->$#*) {
+                $buf = $buf . '<p>' . $header{'note'}[$i] . '</p>';
+            }
+            $text = $text . sprintf(q^<div class="note">%s</div>^, $buf);
+        }
+        $html =~ s/\[DESC\]/$text/;
+    }
+
+    $html = delete_block_class($html, 'temp');
+
+    if (! exists $g_sections{'properties'}) {
+        $html = delete_block_id($html, 'properties');
+    } else {
+        my $table = "<table><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
+
+        append($table, '</table>')
+    }
+
+    if (! exists $g_sections{'methods'}) {
+        #$html = delete_block_id($html, 'methods');
+    }
+
+    return $html;
+}
+
+# Usage: _GetProperties text
+sub _GetProperties {
+    my $text = shift;
+    my @properties = ();
+    my $spaces = qr/[ \t]/;
+
+    # Find the first variable documentation
+    unless ($text =~ /^##$spaces*(.*)(?:.|\n)*?(?=var)/mg) {
+        return undef;
+    }
+
+    # Set our position and RE position to the start of the documentation
+    $g_index = rindex($text, "##", pos $text);
+    pos($text) = $g_index;
+
+    my $line = '';
+    while ($text =~ /^##$spaces*(.+)(?:.|\n)*?(?:var$spaces+.+)/mg) {
+        my $brief = $1;
+        my $prop = Doctool::Property->new();
+
+        my $re_pos = pos($text);
+        $g_index = rindex($text, '##', $re_pos);
+        _nextline($text, $g_index);
+
+        # Get each line from the property
+        do {
+            $line = _getline($text, $g_index);
+
+            given ($line) {
+                when (/^#[ \t]*\@export/) {
+                    $prop->exported(1);
+                }
+                when (/^#[ \t]*\@type[ \t]+(\w+)/) {
+                    $prop->type($1);
+                }
+                when (/^(?:onready)?[ \t]*var[ \t]+(\w+).*=[ \t]*(.*)/) {
+                    # var $1 = $2
+                    $prop->name($1);
+                    $prop->default($2) if (defined($2) && str($2) ne '');
+                }
+                default {
+                    1;
+                }
+            }
+
+            #if ($line =~ /^#$spaces*\@export/) {
+            #    $prop->exported(1);
+            #} elsif ($line =~ /^#$spaces*\@type$spaces+(\w+)/) {
+            #    $prop->type($1);
+            #} elsif ($line =~ /^var$spaces+(\w+).*=$spaces*(.*)/) {
+            #    $prop->name($1);
+            #}
+        } while (index($line, '#') == 0);
+
+        # Append property to array
+        append(@properties, $prop);
+    }
+    #for my $property (@properties) {
+    #    echo( sprintf('%s %s = %s', $property->type(), $property->name(), $property->default()) );
+    #}
+    #exit 0;
+
+    return \@properties;
+}
+
+# Usage: _GetHeader text
+# Fields: brief (string), class (string), description (string, optional)
+sub _GetHeader {
+    my $text = shift;
+    my %header;
+    my $line;
+
+    # Look for the name of the class
+    die q/Cannot find 'class_name' declaration in file/ unless ($text =~ /class_name\s+(\w+)/);
+    $header{'class'} = $1;
+
+    # Get the brief description first.
+    $line = _getline($text, $g_index);
+    $header{'brief'} = substr($line, 3);
+
+    # Look for tags in the comments
+    do {
+        $line = _getline($text, $g_index);
+
+        # If a section-tag is found:
+        if ($line =~ /^#\s*\@($g_sec_tags)/) {
+            my $tag = $1; # e.g., 'desc'
+            my $key = $g_tag_keys{$tag}; # e.g., 'description'
+
+            # Move index in front of tag
+            # To explain the math here:
+            # $g_index is currently the index to the NEXT line, so we subtract the length
+            # of THIS line, and subtract one, to bring it back to the start of the current line.
+            # Then we add the index of the tag (e.g., "@desc") to it, then add its length,
+            # to bring the index in front of the tag.
+            # The result should be that $g_index is at the index after  the tag.
+            my $tagfull = '@' . $1; # '@desc' as opposed to 'desc'
+            my $index = index($line, $tagfull);
+            $g_index = ($g_index - length($line) - 1) + $index + length($tagfull);
+
+            $header{$key} = [_GetParagraphs($text)]; # Parse the section, split paragraphs
+        }
+    } while (index($line, '#') == 0);
+
+    return \%header;
+}
+
+# Usage: _GetParagraphs text
+# Returns an array of paragraph strings
+# Entry condition: $g_index is set to the index right after the tag name in $text
+sub _GetParagraphs {
+    my $text = shift;
+    my $graff = _getline($text, $g_index);
+
+    my $i = 0; # TODO: remove this after testing
+
+    # Parse each line
+    my $line;
+    my @pars = ();
+    do {
+        $line = _getline($text, $g_index);
+
+        # Look for text on each line
+        if ($line =~ /^#\s*(.+)/) {
+            my $next_line = $1;
+
+            # New paragraph, and the first thing we see is a section tag
+            if ($graff eq '' && $line =~ /^#\s*\@$g_sec_tags/) {
+                $line = '';
+                _prevline($text, $g_index);
+            } else {
+                $graff = $graff . " $next_line";
+            }
+        } else {
+            # Ending the paragraph and appending it to the array
+            if ($graff ne '') {
+                $graff =~ s{\@$g_sec_tags}{}g; # Remove stray section tags
+                $graff =~ s{^\s+}{}; # Trim whitespace on the left
+                $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
+                append(@pars, $graff);
+                $graff = '';
+            }
+        }
+    } while (index($line, '#') == 0);
+
+    return @pars;
+}
+
+# Read file given by argument
+if (defined($ARGV[0])) {
+    my $text;
+    local $/;
+    defined($text = <>) or exit 1;
+    print Doctool($text);
+}
+
+1;
