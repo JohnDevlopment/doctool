@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>[CLASSNAME] - Class Documentation</title>
+        <style media="screen">
+            header, section {
+                margin-left: 2cm;
+            }
+            div.note {
+                border-left-style: solid;
+                border-left-width: 5px;
+                border-left-color: #FCE94F;
+                padding-left: 2px;
+                margin-left: 1cm;
+            }
+            th {
+                font-weight: bold;
+            }
+            td:nth-child(1) {
+                font-family: "Liberation Mono", "Courier New", monospace;
+            }
+            td, th {
+                border: 1px solid #9FA695;
+                padding: 4px;
+                font-family: FreeSans, Arial, sans-serif;
+            }
+            table {
+                border-collapse: collapse;
+                width: 60%;
+            }
+            tr:nth-child(even) {
+                background-color: #E8E8E8;
+            }
+            tr:nth-child(odd) {
+                background-color: #FAFAFA;
+            }
+        </style>
+        <script type="text/javascript">
+            function changeNote() {
+                const es = document.getElementsByClassName('note');
+                let flen = es.length;
+                for (let i = 0; i < flen; ++i) {
+                    let buf = es[i].innerHTML;
+                    es[i].innerHTML = "<b>Note</b>" + buf;
+                }
+            }
+        </script>
+    </head>
+    <body onload="changeNote()">
+        <header>
+            <h1>[CLASSNAME]</h1>
+            <p>[BRIEF]</p>
+        </header>
+        <section id="description">
+            <h2>Description</h2>
+            [DESC]
+        </section>
+        <section id="properties">
+            <h2>Properties</h2>
+            [PROPERTIES]
+            <table class="temp" id="tprops">
+                <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Default</th>
+                </tr>
+                <tr>
+                    <td>int</td>
+                    <td>integer</td>
+                    <td>0</td>
+                </tr>
+                <tr>
+                    <td>bool</td>
+                    <td>boolean</td>
+                    <td>false</td>
+                </tr>
+                <tr>
+                    <td>string</td>
+                    <td>stringVariable</td>
+                    <td></td>
+                </tr>
+            </table>
+        </section>
+        <section id="signals">
+            <h2>Signals</h2>
+            [SIGNALS]
+        </section>
+        <section id="methods">
+            <h2>Methods</h2>
+            [METHODS]
+        </section>
+    </body>
+</html>
