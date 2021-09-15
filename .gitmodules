@@ -1,0 +1,3 @@
+[submodule "doctool-modules"]
+	path = doctool-modules
+	url = https://github.com/JohnDevlopment/doctool-modules.git
