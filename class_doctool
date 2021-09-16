@@ -13,6 +13,28 @@ my %g_sections;
 my $g_index;
 my $g_sec_tags = qr/desc|note/;
 
+use constant POD_TYPES => qw(
+    float int void Variant String Dictionary Array
+    PoolRealArray PoolIntArray PoolStringArray
+    PoolVector2Array PoolVector3Array PoolColorArray
+);
+
+use constant COMPLEX_TYPES => qw(
+    Vector2
+    Vector3
+    Rect2
+    Transform2D
+    Transform
+    Plane
+    Quat
+    AABB
+    Basis
+    Color
+    NodePath
+    RID
+    Object
+);
+
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
     my ($text,$attr,$value) = @_;
@@ -43,7 +65,7 @@ sub delete_block_class ($$) {
 
 # Usage: delete_block string, id
 sub delete_block_id ($$) {
-    return _delete_block_attr($_[0], 'class', $_[1]);
+    return _delete_block_attr($_[0], 'id', $_[1]);
 }
 
 # Usage: _nextline string index
@@ -134,6 +156,7 @@ sub Doctool {
 }
 
 sub _BuildHTML {
+    # Read template.html into a buffer
     my $html = '';
     open(HANDLE, '<', './template.html') or die $!;
     while (<HANDLE>) {
@@ -143,6 +166,18 @@ sub _BuildHTML {
 
     # Parse header section
     my %header = %{$g_sections{'header'}};
+
+    {
+        my $extends = sprintf('<p>Inherits from: %s</p>', $header{'extends'});
+        $html =~ s{
+            \n
+            ([ \t]*)
+            (?=.*\[BRIEF\])
+        }{
+            "\n$1" . $extends . "\n$1";
+        }ex;
+    }
+
     $html =~ s/\[CLASSNAME\]/$header{'class'}/g;
     $html =~ s/\[BRIEF\]/$header{'brief'}/;
 
@@ -163,18 +198,81 @@ sub _BuildHTML {
         $html =~ s/\[DESC\]/$text/;
     }
 
-    $html = delete_block_class($html, 'temp');
-
+    # Properties section
     if (! exists $g_sections{'properties'}) {
         $html = delete_block_id($html, 'properties');
     } else {
         my $table = "<table><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
+        my $properties = $g_sections{'properties'};
 
-        append($table, '</table>')
+        for my $prop (@$properties) {
+            my $tr = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type, $prop->name, $prop->default);
+            append($table, $tr . "\n");
+        }
+
+        append($table, "</table>");
+
+        $html =~ s{\[PROPERTIES\]}{$table};
     }
 
+    # Methods section
     if (! exists $g_sections{'methods'}) {
-        #$html = delete_block_id($html, 'methods');
+        $html = delete_block_id($html, 'methods');
+    }
+
+    # Signals section
+    if (! exists $g_sections{'signals'}) {
+        $html = delete_block_id($html, 'signals');
+    }
+
+    $html = _ParseFormatTags($html);
+    $html = _FormatTypeNames($html);
+
+    return $html;
+}
+
+sub _FormatTypeNames {
+    my $html = shift;
+    my $pattern;
+    {
+        my $temp = join('|', POD_TYPES);
+        $pattern = qr/$temp/;
+    }
+
+    $html =~ s{\b($pattern)}{
+        sprintf(q^<span class="podtype">%s</span>^, $1);
+    }eg;
+
+    {
+        my $temp = join('|', COMPLEX_TYPES);
+        $pattern = qr/$temp/;
+    }
+
+    $html =~ s{\b($pattern)}{
+        sprintf(q^<span class="complextype">%s</span>^, $1);
+    }eg;
+
+    return $html;
+}
+
+sub _ParseFormatTags {
+    my $html = shift;
+    my %tags = (
+        code => '<code>%s</code>',
+        b => '<b>%s</b>',
+        i => '<i>%s</i>'
+    );
+
+    $html =~ s/\@br/<br>/g;
+
+    foreach my $key (keys %tags) {
+        $html =~ s{
+            \@$key
+            \s*
+            (\w+)
+        }{
+            sprintf($tags{$key}, $1);
+        }egx;
     }
 
     return $html;
@@ -184,10 +282,9 @@ sub _BuildHTML {
 sub _GetProperties {
     my $text = shift;
     my @properties = ();
-    my $spaces = qr/[ \t]/;
 
     # Find the first variable documentation
-    unless ($text =~ /^##$spaces*(.*)(?:.|\n)*?(?=var)/mg) {
+    unless ($text =~ /^##[ \t]*(.*)(?:.|\n)*?(?=var)/mg) {
         return undef;
     }
 
@@ -196,7 +293,7 @@ sub _GetProperties {
     pos($text) = $g_index;
 
     my $line = '';
-    while ($text =~ /^##$spaces*(.+)(?:.|\n)*?(?:var$spaces+.+)/mg) {
+    while ($text =~ /^##[ \t]*(.+)(?:.|\n)*?(?:var[ \t]+.+)/mg) {
         my $brief = $1;
         my $prop = Doctool::Property->new();
 
@@ -209,38 +306,25 @@ sub _GetProperties {
             $line = _getline($text, $g_index);
 
             given ($line) {
-                when (/^#[ \t]*\@export/) {
-                    $prop->exported(1);
-                }
                 when (/^#[ \t]*\@type[ \t]+(\w+)/) {
                     $prop->type($1);
                 }
                 when (/^(?:onready)?[ \t]*var[ \t]+(\w+).*=[ \t]*(.*)/) {
                     # var $1 = $2
                     $prop->name($1);
-                    $prop->default($2) if (defined($2) && str($2) ne '');
+                    if (defined($2)) {
+                        $prop->default($2);
+                    }
                 }
                 default {
                     1;
                 }
             }
-
-            #if ($line =~ /^#$spaces*\@export/) {
-            #    $prop->exported(1);
-            #} elsif ($line =~ /^#$spaces*\@type$spaces+(\w+)/) {
-            #    $prop->type($1);
-            #} elsif ($line =~ /^var$spaces+(\w+).*=$spaces*(.*)/) {
-            #    $prop->name($1);
-            #}
         } while (index($line, '#') == 0);
 
         # Append property to array
         append(@properties, $prop);
     }
-    #for my $property (@properties) {
-    #    echo( sprintf('%s %s = %s', $property->type(), $property->name(), $property->default()) );
-    #}
-    #exit 0;
 
     return \@properties;
 }
@@ -283,6 +367,10 @@ sub _GetHeader {
             $header{$key} = [_GetParagraphs($text)]; # Parse the section, split paragraphs
         }
     } while (index($line, '#') == 0);
+
+    if ($text =~ /^extends[ \t]+(\w+)/m) {
+        $header{'extends'} = $1;
+    }
 
     return \%header;
 }

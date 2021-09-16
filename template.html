@@ -17,13 +17,17 @@
             th {
                 font-weight: bold;
             }
-            td:nth-child(1) {
+            td:nth-child(1), td:nth-child(3) {
                 font-family: "Liberation Mono", "Courier New", monospace;
             }
             td, th {
                 border: 1px solid #9FA695;
                 padding: 4px;
                 font-family: FreeSans, Arial, sans-serif;
+            }
+            p {
+                font-family: FreeSans, Arial, sans-serif;
+                margin-bottom: 30px;
             }
             table {
                 border-collapse: collapse;
@@ -34,6 +38,15 @@
             }
             tr:nth-child(odd) {
                 background-color: #FAFAFA;
+            }
+            span {
+                font-family: "Liberation Mono", "Courier New", monospace;
+            }
+            span.podtype {
+                color: #C15252;
+            }
+            span.complextype {
+                color: #6FBF21;
             }
         </style>
         <script type="text/javascript">
@@ -52,6 +65,7 @@
             <h1>[CLASSNAME]</h1>
             <p>[BRIEF]</p>
         </header>
+        <hr>
         <section id="description">
             <h2>Description</h2>
             [DESC]
@@ -59,28 +73,6 @@
         <section id="properties">
             <h2>Properties</h2>
             [PROPERTIES]
-            <table class="temp" id="tprops">
-                <tr>
-                    <th>Type</th>
-                    <th>Name</th>
-                    <th>Default</th>
-                </tr>
-                <tr>
-                    <td>int</td>
-                    <td>integer</td>
-                    <td>0</td>
-                </tr>
-                <tr>
-                    <td>bool</td>
-                    <td>boolean</td>
-                    <td>false</td>
-                </tr>
-                <tr>
-                    <td>string</td>
-                    <td>stringVariable</td>
-                    <td></td>
-                </tr>
-            </table>
         </section>
         <section id="signals">
             <h2>Signals</h2>
