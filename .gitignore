@@ -1,2 +1,5 @@
 markdown_mod
 *.gd
+*.sh
+test.pl
+html/
