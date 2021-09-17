@@ -2,15 +2,21 @@
 
 use strict;
 use warnings;
-use Digest::MD5 qw(md5_hex);
-use Doctool::Property;
-use Doctool::Util qw(append echo min max str);
-use Scalar::Util qw(looks_like_number);
 use v5.10;
 
-my %g_tag_keys = qw(desc description note note);
+# Doctool Modules
+use FindBin;
+use lib "$FindBin::Bin/lib";
+
+use Doctool::Getline;
+use Doctool::Property;
+use Doctool::Util qw(append echo str);
+use String::Util qw(ltrim rtrim hascontent contains);
+
+use Digest::MD5 qw(md5_hex);
+
+my %g_sec_tag_keys = qw(desc description note note);
 my %g_sections;
-my $g_index;
 my $g_sec_tags = qr/desc|note/;
 
 use constant POD_TYPES => qw(
@@ -59,85 +65,20 @@ sub _delete_block_attr ($$$) {
     return $text;
 }
 
-sub delete_block_class ($$) {
-    return _delete_block_attr($_[0], 'class', $_[1]);
-}
+# Usage: delete_block string, class
+sub delete_block_class ($$) {return _delete_block_attr($_[0], 'class', $_[1]);}
 
 # Usage: delete_block string, id
-sub delete_block_id ($$) {
-    return _delete_block_attr($_[0], 'id', $_[1]);
-}
-
-# Usage: _nextline string index
-sub _nextline($\$) {
-    my ($string,$index) = @_;
-    my $end = length($string) - 1;
-    my $i = index($string, "\n", $$index);
-    if ($i < 0) {
-        $$index = $end;
-    } else {
-        $$index = min($i + 1, $end);
-    }
-}
-
-# Usage: _prevline string index
-sub _prevline ($\$) {
-    my ($string,$index) = @_;
-    my $i = rindex($string, "\n", $$index);
-    if (abs($i - $$index) == 1) {
-        $i = rindex($string, "\n", $$index - 2);
-    }
-    $$index = $i + 1;
-}
-
-# Usage: _getline string index
-sub _getline ($\$) {
-    # $start is a reference to a scalar
-
-    # String and starting index
-    my ($string,$start) = @_;
-
-    # End of line (or end of string in case of no newline)
-    my $end = index($string, "\n", $$start);
-    if ($end < 0) {
-        $end = length($string);
-    }
-
-    my $result = substr($string, $$start, $end - $$start);
-    $$start = $end + 1; # Advance index to the next line
-    return $result;
-}
-
-# Usage: _printarray string array
-sub _printarray {
-    my $name = shift;
-    my (@ar) = @_;
-    print qq/Dump of array "$name"\n/;
-    my $i = 0;
-    foreach (@ar) {
-        print "index $i : $_\n";
-        ++$i;
-    }
-}
-
-# Usage: _printhash string hash
-sub _printhash {
-    my $name = shift;
-    my (%hash) = @_;
-    print qq/Dump of hash "$name"\n/;
-    foreach my $key (keys %hash) {
-        my $value = $hash{$key};
-        print qq/"$key" : $value\n/;
-    }
-}
+sub delete_block_id ($$) {return _delete_block_attr($_[0], 'id', $_[1]);}
 
 # Main subroutine
-# Note: $g_index is read and modified throughout each subroutine used by Doctool.
 sub Doctool {
     my $text = shift or die "Needs a string argument";
 
-    # Reset index
-    $g_index = 0;
+    my %parse_subs = (
+        export => \&_ParseProperty,
+        class => \&_ParseClass
+    );
 
     # Clear global hash
     %g_sections = ();
@@ -149,8 +90,15 @@ sub Doctool {
     # Require that the very first line be a comment with two "#" and text
     die 'No documentation found for this class' unless ($text =~ /^##\s*.+/);
 
-    $g_sections{'header'} = _GetHeader($text);
-    $g_sections{'properties'} = _GetProperties($text);
+    while ($text =~ /^(?=##\s*)/gm) {
+        my $index = pos($text);
+        my $doc = _DetectDocType($text, $index);
+
+        my $key = $doc->{'type'};
+        if (exists $parse_subs{$key}) {
+            &{$parse_subs{$key}}($doc->{'text'});
+        }
+    }
 
     return _BuildHTML();
 }
@@ -165,7 +113,7 @@ sub _BuildHTML {
     close(HANDLE);
 
     # Parse header section
-    my %header = %{$g_sections{'header'}};
+    my %header = %{ $g_sections{'header'} };
 
     {
         my $extends = sprintf('<p>Inherits from: %s</p>', $header{'extends'});
@@ -199,40 +147,41 @@ sub _BuildHTML {
     }
 
     # Properties section
-    if (! exists $g_sections{'properties'}) {
-        $html = delete_block_id($html, 'properties');
-    } else {
-        my $table = "<table><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
-        my $properties = $g_sections{'properties'};
-
-        for my $prop (@$properties) {
-            my $tr = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type, $prop->name, $prop->default);
-            append($table, $tr . "\n");
-        }
-
-        append($table, "</table>");
-
-        $html =~ s{\[PROPERTIES\]}{$table};
-    }
+    #if (! exists $g_sections{'properties'}) {
+    #    $html = delete_block_id($html, 'properties');
+    #} else {
+    #    my $table = "<table><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
+    #    my $properties = $g_sections{'properties'};
+    #
+    #    for my $prop (@$properties) {
+    #        my $tr = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type, $prop->name, $prop->default);
+    #        append($table, $tr . "\n");
+    #    }
+    #
+    #    append($table, "</table>");
+    #
+    #    $html =~ s{\[PROPERTIES\]}{$table};
+    #}
 
     # Methods section
-    if (! exists $g_sections{'methods'}) {
-        $html = delete_block_id($html, 'methods');
-    }
+    #if (! exists $g_sections{'methods'}) {
+    #    $html = delete_block_id($html, 'methods');
+    #}
 
     # Signals section
-    if (! exists $g_sections{'signals'}) {
-        $html = delete_block_id($html, 'signals');
-    }
+    #if (! exists $g_sections{'signals'}) {
+    #    $html = delete_block_id($html, 'signals');
+    #}
 
-    $html = _ParseFormatTags($html);
-    $html = _FormatTypeNames($html);
+    #$html = _ParseFormatTags($html);
+    #$html = _FormatTypeNames($html);
 
     return $html;
 }
 
 sub _FormatTypeNames {
     my $html = shift;
+
     my $pattern;
     {
         my $temp = join('|', POD_TYPES);
@@ -267,9 +216,11 @@ sub _ParseFormatTags {
 
     foreach my $key (keys %tags) {
         $html =~ s{
-            \@$key
-            \s*
-            (\w+)
+            (?:
+                \@$key
+                \s*
+                (\w+)
+            )
         }{
             sprintf($tags{$key}, $1);
         }egx;
@@ -278,134 +229,104 @@ sub _ParseFormatTags {
     return $html;
 }
 
-# Usage: _GetProperties text
-sub _GetProperties {
+# Returns what type of documentation we're dealing with, also isolates the chunk for us
+# Params
+#    text to sift through
+#    index to start the search from
+# Return value
+#    A reference to a hash with two fields
+#      * $hash{'text'} = a string with the documentation and the entity being documented
+#      * $hash{'type'} = string denoting the type of documentation
+sub _DetectDocType {
     my $text = shift;
-    my @properties = ();
+    my $index = shift;
+    my $doc_text = '';
+    my $doc_type = 'unknown';
+    my $is_func = 0;
 
-    # Find the first variable documentation
-    unless ($text =~ /^##[ \t]*(.*)(?:.|\n)*?(?=var)/mg) {
-        return undef;
+    # Continue until you reach a non-comment line
+    my $line;
+    do {
+        use String::Util 'startswith';
+        $line = getline($text, $index);
+        if (! $is_func) {
+            append($doc_text, $line . "\n");
+        }
+
+        if ( startswith($line, 'func') ) {
+            $is_func = 1;
+        }
+    } while ( hascontent($line) );
+
+    if ($is_func) {
+        $doc_text =~ s/^(func.*:).*/$1/m;
     }
 
-    # Set our position and RE position to the start of the documentation
-    $g_index = rindex($text, "##", pos $text);
-    pos($text) = $g_index;
+    $doc_text = ltrim($doc_text);
 
-    my $line = '';
-    while ($text =~ /^##[ \t]*(.+)(?:.|\n)*?(?:var[ \t]+.+)/mg) {
-        my $brief = $1;
-        my $prop = Doctool::Property->new();
+    no warnings;
+    given ($doc_text) {
+        when (/^(?:export)?.*[ \t]*var\b.*/m) {
+            $doc_type = 'export';
+        }
+        when (/^(class_name|extends).*/m) {
+            $doc_type = 'class';
 
-        my $re_pos = pos($text);
-        $g_index = rindex($text, '##', $re_pos);
-        _nextline($text, $g_index);
-
-        # Get each line from the property
-        do {
-            $line = _getline($text, $g_index);
-
-            given ($line) {
-                when (/^#[ \t]*\@type[ \t]+(\w+)/) {
-                    $prop->type($1);
+            if ($1 eq 'class_name') {
+                if ( ! contains($doc_text, 'extends') ) {
+                    $index = index($text, 'extends');
+                    append($doc_text, getline($text, $index));
                 }
-                when (/^(?:onready)?[ \t]*var[ \t]+(\w+).*=[ \t]*(.*)/) {
-                    # var $1 = $2
-                    $prop->name($1);
-                    if (defined($2)) {
-                        $prop->default($2);
-                    }
-                }
-                default {
-                    1;
+            } else {
+                if ( ! contains($doc_text, 'class_name') ) {
+                    $index = index($text, 'class_name');
+                    append($doc_text, getline($text, $index));
                 }
             }
-        } while (index($line, '#') == 0);
-
-        # Append property to array
-        append(@properties, $prop);
-    }
-
-    return \@properties;
-}
-
-# Usage: _GetHeader text
-# Fields: brief (string), class (string), description (string, optional)
-sub _GetHeader {
-    my $text = shift;
-    my %header;
-    my $line;
-
-    # Look for the name of the class
-    die q/Cannot find 'class_name' declaration in file/ unless ($text =~ /class_name\s+(\w+)/);
-    $header{'class'} = $1;
-
-    # Get the brief description first.
-    $line = _getline($text, $g_index);
-    $header{'brief'} = substr($line, 3);
-
-    # Look for tags in the comments
-    do {
-        $line = _getline($text, $g_index);
-
-        # If a section-tag is found:
-        if ($line =~ /^#\s*\@($g_sec_tags)/) {
-            my $tag = $1; # e.g., 'desc'
-            my $key = $g_tag_keys{$tag}; # e.g., 'description'
-
-            # Move index in front of tag
-            # To explain the math here:
-            # $g_index is currently the index to the NEXT line, so we subtract the length
-            # of THIS line, and subtract one, to bring it back to the start of the current line.
-            # Then we add the index of the tag (e.g., "@desc") to it, then add its length,
-            # to bring the index in front of the tag.
-            # The result should be that $g_index is at the index after  the tag.
-            my $tagfull = '@' . $1; # '@desc' as opposed to 'desc'
-            my $index = index($line, $tagfull);
-            $g_index = ($g_index - length($line) - 1) + $index + length($tagfull);
-
-            $header{$key} = [_GetParagraphs($text)]; # Parse the section, split paragraphs
         }
-    } while (index($line, '#') == 0);
-
-    if ($text =~ /^extends[ \t]+(\w+)/m) {
-        $header{'extends'} = $1;
+        when (/^(signal|enum|func)\b.*/m) {
+            $doc_type = $1;
+        }
+        default {1;}
     }
 
-    return \%header;
+    $doc_text =~ s/\n\n/\n/m;
+
+    return { 'text' => $doc_text, 'type' => rtrim($doc_type) };
 }
 
-# Usage: _GetParagraphs text
+# Usage: _GetParagraphs $text \$index
 # Returns an array of paragraph strings
-# Entry condition: $g_index is set to the index right after the tag name in $text
+# Entry condition: $index is set to the index right after the tag name in $text
 sub _GetParagraphs {
     my $text = shift;
-    my $graff = _getline($text, $g_index);
+    my $r_index = shift; # reference
 
-    my $i = 0; # TODO: remove this after testing
+    my $index = $$r_index;
+    my $graff = getline($text, $index);
 
-    # Parse each line
     my $line;
     my @pars = ();
+
     do {
-        $line = _getline($text, $g_index);
+        $line = getline($text, $index);
 
         # Look for text on each line
         if ($line =~ /^#\s*(.+)/) {
-            my $next_line = $1;
+            my $add_to_graff = $1;
 
             # New paragraph, and the first thing we see is a section tag
             if ($graff eq '' && $line =~ /^#\s*\@$g_sec_tags/) {
                 $line = '';
-                _prevline($text, $g_index);
+                prevline($text, $index);
             } else {
-                $graff = $graff . " $next_line";
+                $graff = $graff . " $add_to_graff";
             }
         } else {
             # Ending the paragraph and appending it to the array
             if ($graff ne '') {
                 $graff =~ s{\@$g_sec_tags}{}g; # Remove stray section tags
-                $graff =~ s{^\s+}{}; # Trim whitespace on the left
+                $graff = ltrim($graff);
                 $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
                 append(@pars, $graff);
                 $graff = '';
@@ -413,7 +334,98 @@ sub _GetParagraphs {
         }
     } while (index($line, '#') == 0);
 
-    return @pars;
+    $$r_index = $index;
+
+    return \@pars;
+}
+
+# _ParseClass string
+# Fields: brief (string), class (string), desc (string, optional), extends
+sub _ParseClass {
+    my $text = shift;
+    my %header;
+    my $line;
+    my $index = 0;
+
+    # Look for the name of the class
+    $text =~ /class_name\s+(\w+)/;
+    $header{'class'} = $1;
+
+    # Get the brief description first.
+    $line = getline($text, $index);
+    $header{'brief'} = ($text =~ /^##\s*(.+)/) ? $1 : 'No description available';
+
+    # Look for tags in the comments
+    do {
+        $line = getline($text, $index);
+
+        # If a section-tag is found:
+        if ($line =~ /^#\s*\@($g_sec_tags)/) {
+            my $tag = $1; # e.g., 'desc'
+            my $key = $g_sec_tag_keys{$tag}; # e.g., 'description'
+
+            # Move index in front of tag
+            # To explain the math here:
+            # $index is currently the index to the NEXT line, so we subtract the length
+            # of THIS line, and subtract one, to bring it back to the start of the current line.
+            # Then we add the index of the tag (e.g., "@desc") to it, then add its length,
+            # to bring the index in front of the tag.
+            # The result should be that $index is at the index after  the tag.
+            my $i = index($line, '@' . $1);
+            $index = ($index - length($line) - 1) + $i + length('@' . $1);
+
+            $header{$key} = _GetParagraphs($text, \$index);
+        }
+    } while (index($line, '#') == 0);
+
+    die q/Syntax error: no "extends" found in input/ unless ($text =~ /^extends[ \t]+(\w+)/m);
+    $header{'extends'} = $1;
+
+    $g_sections{'header'} = \%header;
+}
+
+sub _ParseFunction {}
+
+# _ParseProperty string
+# Note: $g_section{'properties'} is a list of Doctool::Property objects.
+#       The attributes are: brief, name, default, type, description (ARRAY)
+sub _ParseProperty {
+    my $text = shift;
+    my $prop = Doctool::Property->new();
+    my $index = 0;
+    my $line = '';
+
+    # Get the brief description first.
+    $line = getline($text, $index);
+    $prop->brief( ($text =~ /^##\s*(.+)/) ? $1 : 'No description available' );
+
+    do {
+        $line = getline($text, $index);
+
+        # Found a section tag
+        if ($line =~ /^#\s*\@($g_sec_tags)/) {
+            my $tag = $1; # e.g., 'desc'
+            my $key = $g_sec_tag_keys{$tag}; # e.g., 'description'
+
+            # Move index in front of tag
+            # To explain the math here:
+            # $index is currently the index to the NEXT line, so we subtract the length
+            # of THIS line, and subtract one, to bring it back to the start of the current line.
+            # Then we add the index of the tag (e.g., "@desc") to it, then add its length,
+            # to bring the index in front of the tag.
+            # The result should be that $index is at the index after  the tag.
+            my $i = index($line, '@' . $1);
+            $index = ($index - length($line) - 1) + $i + length('@' . $1);
+
+            $prop->description(_GetParagraphs($text, \$index));
+        }
+    } while (index($line, '#') == 0);
+
+    if (! exists $g_sections{'properties'}) {
+        $g_sections{'properties'} = ();
+    }
+
+    Doctool::Util::push_back(@{$g_sections{'properties'}}, $prop);
 }
 
 # Read file given by argument
