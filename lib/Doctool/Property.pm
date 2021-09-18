@@ -47,21 +47,33 @@ sub default {
         croak _print_arg_error('default', '[value]');
     }
 
-    return $self->_set_get_attribute('default', ($argc == 1) ? $_[0] : undef);
+    my $value = ($argc == 1) ? $_[0] : undef;
+
+    # Type is String and value defined
+    if ($self->type() eq 'String') {
+        if ( defined($_[0]) ) {
+            $value = qq/"$value"/;
+        }
+    }
+
+    return $self->_set_get_attribute('default', $value);
 }
 
 # Set the full description
 sub description {
     my $self = shift;
-    my $argc = @_;
 
-    if ($argc == 0) {
+    if (scalar(@_) == 0) {
         return $self->{'description'};
     }
 
-    $self->{'description'} = @_;
+    if ( ref($_[0]) eq 'ARRAY' ) {
+        $self->{'description'} = shift;
+        return;
+    }
 
-    return;
+    my @array = @_;
+    $self->{'description'} = \@array;
 }
 
 # Get or set the name of the property

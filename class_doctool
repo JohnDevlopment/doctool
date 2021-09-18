@@ -10,14 +10,15 @@ use lib "$FindBin::Bin/lib";
 
 use Doctool::Getline;
 use Doctool::Property;
-use Doctool::Util qw(append echo str);
+use Doctool::Util qw(append echo str push_back);
 use String::Util qw(ltrim rtrim hascontent contains);
+use Readonly;
 
 use Digest::MD5 qw(md5_hex);
 
 my %g_sec_tag_keys = qw(desc description note note);
 my %g_sections;
-my $g_sec_tags = qr/desc|note/;
+Readonly::Scalar my $g_sec_tags => qr/desc|note/;
 
 use constant POD_TYPES => qw(
     float int void Variant String Dictionary Array
@@ -40,6 +41,12 @@ use constant COMPLEX_TYPES => qw(
     RID
     Object
 );
+
+# TODO: #1 uncomment this after finishing todo #2
+#use constant PROP_DESC_TEMPLATE => <<EOF;
+#afl;sadjfkjasldfkjhsakjdhgfkjsdlhgkj
+#asfafsdafsdfds
+#EOF
 
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
@@ -104,13 +111,7 @@ sub Doctool {
 }
 
 sub _BuildHTML {
-    # Read template.html into a buffer
-    my $html = '';
-    open(HANDLE, '<', './template.html') or die $!;
-    while (<HANDLE>) {
-        $html = $html . $_;
-    }
-    close(HANDLE);
+    my $html = Doctool::Util::readfile('template.html');
 
     # Parse header section
     my %header = %{ $g_sections{'header'} };
@@ -147,21 +148,44 @@ sub _BuildHTML {
     }
 
     # Properties section
-    #if (! exists $g_sections{'properties'}) {
-    #    $html = delete_block_id($html, 'properties');
-    #} else {
-    #    my $table = "<table><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
-    #    my $properties = $g_sections{'properties'};
-    #
-    #    for my $prop (@$properties) {
-    #        my $tr = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type, $prop->name, $prop->default);
-    #        append($table, $tr . "\n");
-    #    }
-    #
-    #    append($table, "</table>");
-    #
-    #    $html =~ s{\[PROPERTIES\]}{$table};
-    #}
+    if (! exists $g_sections{'properties'}) {
+        $html = delete_block_id($html, 'properties');
+    } else {
+        my $table = "<table class=\"bicolor\"><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
+        my $properties = $g_sections{'properties'};
+        my $propdescs = '';
+
+        # TODO: #2 remove this once finished editing the file, then copy its contents
+        Readonly::Scalar my $c_propdesc_html => Doctool::Util::readfile('c/propdesc.html');
+
+        foreach my $prop (@$properties) {
+            my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type, $prop->name, $prop->default);
+            append($table, $text . "\n" . "</table>");
+
+            my $propdesc = $c_propdesc_html;
+
+            $propdesc =~ s/\[PROPSIG\]/$prop->type() . ' ' . $prop->name()/e;
+            $propdesc =~ s/\[PROPNAME\]/$prop->name()/eg;
+            $propdesc =~ s/\[PROPDEFAULT\]/$prop->default()/e;
+            $propdesc =~ s/\[PROPSETTER\]/set_poop()/;
+            $propdesc =~ s/\[PROPGETTER\]/get_poop()/;
+
+            {
+                # Property description
+                my $r_array = $prop->description();
+                $text = '';
+
+                foreach (@$r_array) {
+                    append($text, '<p>' . $_ . '</p>');
+                }
+                $propdesc =~ s/\[PROPDESC\]/$text/e;
+            }
+
+            append($propdescs, $propdesc);
+        }
+
+        $html =~ s{\[PROPERTIES\]}{$table . "\n" . $propdescs}e;
+    }
 
     # Methods section
     #if (! exists $g_sections{'methods'}) {
@@ -173,8 +197,8 @@ sub _BuildHTML {
     #    $html = delete_block_id($html, 'signals');
     #}
 
-    #$html = _ParseFormatTags($html);
-    #$html = _FormatTypeNames($html);
+    $html = _ParseFormatTags($html);
+    $html = _FormatTypeNames($html);
 
     return $html;
 }
@@ -188,7 +212,7 @@ sub _FormatTypeNames {
         $pattern = qr/$temp/;
     }
 
-    $html =~ s{\b($pattern)}{
+    $html =~ s{\b($pattern)\b}{
         sprintf(q^<span class="podtype">%s</span>^, $1);
     }eg;
 
@@ -209,22 +233,39 @@ sub _ParseFormatTags {
     my %tags = (
         code => '<code>%s</code>',
         b => '<b>%s</b>',
-        i => '<i>%s</i>'
+        i => '<i>%s</i>',
+        function => '<code class="function">%s</code>',
+        class => '<code class="class">%s</code>'
     );
 
     $html =~ s/\@br/<br>/g;
 
-    foreach my $key (keys %tags) {
-        $html =~ s{
-            (?:
-                \@$key
-                \s*
-                (\w+)
-            )
-        }{
-            sprintf($tags{$key}, $1);
-        }egx;
+    my $pattern;
+    {
+        my $temp = join('|', keys %tags);
+        $pattern = qr/$temp/;
     }
+
+    $html =~ s{
+        (?:
+            \@($pattern)
+            \s+
+            (\w+)
+        )
+    }{
+        sprintf($tags{$1}, $2);
+    }egx;
+
+    $html =~ s{
+        (?:
+            \@($pattern)
+            \{
+            (\N+)
+            \}
+        )
+    }{
+        sprintf($tags{$1}, $2);
+    }egx;
 
     return $html;
 }
@@ -296,7 +337,7 @@ sub _DetectDocType {
 }
 
 # Usage: _GetParagraphs $text \$index
-# Returns an array of paragraph strings
+# Returns a reference to an array of paragraph strings
 # Entry condition: $index is set to the index right after the tag name in $text
 sub _GetParagraphs {
     my $text = shift;
@@ -328,7 +369,7 @@ sub _GetParagraphs {
                 $graff =~ s{\@$g_sec_tags}{}g; # Remove stray section tags
                 $graff = ltrim($graff);
                 $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
-                append(@pars, $graff);
+                push_back(@pars, $graff);
                 $graff = '';
             }
         }
@@ -384,8 +425,6 @@ sub _ParseClass {
     $g_sections{'header'} = \%header;
 }
 
-sub _ParseFunction {}
-
 # _ParseProperty string
 # Note: $g_section{'properties'} is a list of Doctool::Property objects.
 #       The attributes are: brief, name, default, type, description (ARRAY)
@@ -398,6 +437,23 @@ sub _ParseProperty {
     # Get the brief description first.
     $line = getline($text, $index);
     $prop->brief( ($text =~ /^##\s*(.+)/) ? $1 : 'No description available' );
+
+    # Name
+    die "REGEX failed" unless ($text =~ /var\s*(\w+)/);
+    $prop->name($1);
+
+    # Property type
+    die str("Property ", $prop->name, " needs a type") unless ($text =~ /^#\s\@type\s+(\w+)/m);
+    $prop->type($1);
+
+    # Default
+    if ($text =~ /\=\s*(\N+)/) {
+        $prop->default($1);
+    }
+
+    my $return_array = sub {
+        #
+    };
 
     do {
         $line = getline($text, $index);
@@ -425,7 +481,7 @@ sub _ParseProperty {
         $g_sections{'properties'} = ();
     }
 
-    Doctool::Util::push_back(@{$g_sections{'properties'}}, $prop);
+    push_back($g_sections{'properties'}->@*, $prop);
 }
 
 # Read file given by argument

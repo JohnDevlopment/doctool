@@ -4,6 +4,9 @@
         <meta charset="utf-8">
         <title>[CLASSNAME] - Class Documentation</title>
         <style media="screen">
+            body {
+                background-color: #F7FDFF;
+            }
             header, section {
                 margin-left: 2cm;
             }
@@ -14,31 +17,57 @@
                 padding-left: 2px;
                 margin-left: 1cm;
             }
+            p {
+                font-family: FreeSans, Arial, sans-serif;
+                margin-bottom: 30px;
+                width: 85%;
+            }
+
+            /* table */
+            table {
+                border-collapse: collapse;
+            }
             th {
                 font-weight: bold;
-            }
-            td:nth-child(1), td:nth-child(3) {
-                font-family: "Liberation Mono", "Courier New", monospace;
             }
             td, th {
                 border: 1px solid #9FA695;
                 padding: 4px;
                 font-family: FreeSans, Arial, sans-serif;
             }
-            p {
-                font-family: FreeSans, Arial, sans-serif;
-                margin-bottom: 30px;
+
+            /* table class="bicolor_light" */
+            table.bicolor_light {
+                width: inherit;
             }
-            table {
-                border-collapse: collapse;
+            table.bicolor_light td:nth-child(2) {
+                font-family: "Liberation Mono", "Courier New", monospace;
+            }
+            table.bicolor_light tr:nth-child(even) {
+                background-color: #F7FDFF;
+                font-family: "Liberation Mono", "Courier New", monospace;
+            }
+            table.bicolor_light tr:nth-child(odd) {
+                background-color: #E9F0F2;
+                font-family: "Liberation Mono", "Courier New", monospace;
+            }
+
+            /* table class="bicolor" */
+            table.bicolor {
                 width: 60%;
             }
-            tr:nth-child(even) {
-                background-color: #E8E8E8;
+            table.bicolor td:nth-child(1), table.bicolor td:nth-child(3) {
+                font-family: "Liberation Mono", "Courier New", monospace;
             }
-            tr:nth-child(odd) {
-                background-color: #FAFAFA;
+            table.bicolor tr:nth-child(even) {
+                background-color: #DCE6E8;
+                font-family: "Liberation Mono", "Courier New", monospace;
             }
+            table.bicolor tr:nth-child(odd) {
+                background-color: #EDF9FA;
+                font-family: "Liberation Mono", "Courier New", monospace;
+            }
+
             span {
                 font-family: "Liberation Mono", "Courier New", monospace;
             }
@@ -58,9 +87,17 @@
                     es[i].innerHTML = "<b>Note</b>" + buf;
                 }
             }
+            function addRefsToFunctionClass() {
+                const es = document.getElementsByClassName('functionref');
+                let flen = es.length;
+                for (let i = 0; i < flen; ++i) {
+                    let buf = es[i].innerHTML;
+                    es[i].innerHTML = "<a href=\"#" + buf.match(/[a-zA-Z_]*(?=\(\))/) + "\">" + buf + "</a>";
+                }
+            }
         </script>
     </head>
-    <body onload="changeNote()">
+    <body onload="changeNote(); addRefsToFunctionClass()">
         <header>
             <h1>[CLASSNAME]</h1>
             <p>[BRIEF]</p>

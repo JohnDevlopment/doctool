@@ -5,6 +5,6 @@ Doctool is a Perl-based program I've written for the sole purpose of generating 
 As of right now, the following goals are met:
 
 - [X] Create "header" section with the class name and description
-- [ ] Create "properties" section with a list of exported properties
+- [X] Create "properties" section with a list of exported properties
 - [ ] Create "methods" section with a list of exposed methods
 - [ ] Create "signals" section with a list of defined signals
