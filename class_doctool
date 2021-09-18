@@ -51,7 +51,7 @@ use constant COMPLEX_TYPES => qw(
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
     my ($text,$attr,$value) = @_;
-    my $block = qr/section|article|div|table|header/;
+    my $block = qr/section|article|div|table|header|tr|td|tbody/;
     $text =~ s{
         (
             ^              # Spaces from the start
@@ -111,7 +111,7 @@ sub Doctool {
 }
 
 sub _BuildHTML {
-    my $html = Doctool::Util::readfile('template.html');
+    my $html = Doctool::Util::readfile("$FindBin::Bin/template.html");
 
     # Parse header section
     my %header = %{ $g_sections{'header'} };
@@ -155,50 +155,84 @@ sub _BuildHTML {
         my $properties = $g_sections{'properties'};
         my $propdescs = '';
 
-        # TODO: #2 remove this once finished editing the file, then copy its contents
-        Readonly::Scalar my $c_propdesc_html => Doctool::Util::readfile('c/propdesc.html');
+        Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
+
+        my $r_fixquotes = sub {
+            no warnings;
+            my $text = shift;
+            my $type = shift;
+            if ($type eq 'String') {
+                my $quote = chr(0x22);
+                return $text if ($text =~ /^\x22.*\x22/); # return if properly quoted
+                return $text =~ s/\x27/$quote/rg; # replace single quotes with double quotes
+            }
+            return $text;
+        };
 
         foreach my $prop (@$properties) {
-            my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type, $prop->name, $prop->default);
-            append($table, $text . "\n" . "</table>");
+            my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type(), $prop->name(), $prop->default());
+            append($table, $text . "\n");
 
             my $propdesc = $c_propdesc_html;
+            my $propname = $prop->name();
 
-            $propdesc =~ s/\[PROPSIG\]/$prop->type() . ' ' . $prop->name()/e;
-            $propdesc =~ s/\[PROPNAME\]/$prop->name()/eg;
-            $propdesc =~ s/\[PROPDEFAULT\]/$prop->default()/e;
-            $propdesc =~ s/\[PROPSETTER\]/set_poop()/;
-            $propdesc =~ s/\[PROPGETTER\]/get_poop()/;
-
+            $propdesc =~ s/\[PROPNAME\]/$propname/g;
             {
-                # Property description
-                my $r_array = $prop->description();
-                $text = '';
+                my $temp = &$r_fixquotes($prop->default(), $prop->type());
+                $propdesc =~ s/\[PROPDEFAULT\]/$temp/;
+            }
+            $propdesc =~ s/\[PROPSIG\]/$prop->type() . ' ' . $propname/e;
 
-                foreach (@$r_array) {
-                    append($text, '<p>' . $_ . '</p>');
+            # Property setter function
+            if ($prop->setter() ne '') {
+                $propdesc =~ s/\[PROPSETTER\]/$prop->setter()/e;
+            } else {
+                $propdesc = delete_block_id($propdesc, "${propname}_setter");
+            }
+
+            # Property getter function
+            if ($prop->getter() ne '') {
+                $propdesc =~ s/\[PROPGETTER\]/$prop->getter()/e;
+            } else {
+                $propdesc = delete_block_id($propdesc, "${propname}_getter");
+            }
+
+            # Property description
+            {
+                my $r_array = $prop->description();
+                if (ref($r_array) eq 'ARRAY') {
+                    $text = '';
+                    foreach (@$r_array) {
+                        append($text, '<p>' . $_ . '</p>');
+                    }
+                    $propdesc =~ s/\[PROPDESC\]/$text/e;
+                } else {
+                    $propdesc =~ s/\[PROPDESC\]//;
                 }
-                $propdesc =~ s/\[PROPDESC\]/$text/e;
             }
 
             append($propdescs, $propdesc);
         }
+        append($table, "</table>");
 
-        $html =~ s{\[PROPERTIES\]}{$table . "\n" . $propdescs}e;
+        $html =~ s{\[PROPERTIES\]}{$table . "\n<br>\n" . $propdescs}e;
     }
 
     # Methods section
-    #if (! exists $g_sections{'methods'}) {
-    #    $html = delete_block_id($html, 'methods');
-    #}
+    if (! exists $g_sections{'methods'}) {
+        $html = delete_block_id($html, 'methods');
+    }
 
     # Signals section
-    #if (! exists $g_sections{'signals'}) {
-    #    $html = delete_block_id($html, 'signals');
-    #}
+    if (! exists $g_sections{'signals'}) {
+        $html = delete_block_id($html, 'signals');
+    }
 
     $html = _ParseFormatTags($html);
     $html = _FormatTypeNames($html);
+
+    $html =~ s/<!--.*?-->//g;
+    $html =~ s/\n{2,}/\n/g;
 
     return $html;
 }
@@ -439,11 +473,11 @@ sub _ParseProperty {
     $prop->brief( ($text =~ /^##\s*(.+)/) ? $1 : 'No description available' );
 
     # Name
-    die "REGEX failed" unless ($text =~ /var\s*(\w+)/);
+    die "REGEX failed" unless ($text =~ /^var[ \t]+(\w+)/m);
     $prop->name($1);
 
     # Property type
-    die str("Property ", $prop->name, " needs a type") unless ($text =~ /^#\s\@type\s+(\w+)/m);
+    die str("Property ", $prop->name(), " needs a type") unless ($text =~ /^#\s*\@type\s+(\w+)/m);
     $prop->type($1);
 
     # Default
@@ -451,9 +485,15 @@ sub _ParseProperty {
         $prop->default($1);
     }
 
-    my $return_array = sub {
-        #
-    };
+    # Getter/setter function
+    while ($text =~ /\@([sg]etter)[ \t]+(\w+\(.*\))/g) {
+        my $tag = $1;
+        if ($tag eq 'setter') {
+            $prop->setter($2);
+        } else {
+            $prop->getter($2);
+        }
+    }
 
     do {
         $line = getline($text, $index);
