@@ -10,35 +10,33 @@ use Carp;
 
 our @ISA = qw(Exporter);
 #our @EXPORT = qw();
-our @EXPORT_OK = qw(append echo funcref max min printarray printhash push_back str);
+our @EXPORT_OK = qw(append echo funcref max min printarray printhash push_back str readfile);
 #our @EXPORT_TAGS = ('all' => [@EXPORT, @EXPORT_OK]);
 our $VERSION = v0.10;
 
-# Usage: append array/scalar $value
-sub append (\[@$]$) {
+# Usage: append SCALAR $value
+sub append (\$$) {
     my $ref = shift;
-    my $type = ref($ref);
     my $value = shift;
 
-    if ($type eq 'ARRAY') {
-        my $count = scalar @$ref;
-        $ref->[$count] = $value;
-    } elsif ($type eq 'SCALAR') {
-        $$ref = $$ref . $value;
-    }
+    $$ref = $$ref . $value;
 
-    return $ref;
+    return;
 }
 
-# push_back ARRAY, VALUE
-sub push_back (\@$) {
+# push_back ARRAY, VALUE, ...
+sub push_back (\@$@) {
     my $ref = shift;
     my $value = shift;
 
-    my $count = scalar @$ref;
-    $ref->[$count] = $value;
+    my $index = scalar @$ref;
+    $ref->[$index] = $value;
 
-    return $ref;
+    foreach (@_) {
+        $ref->[++$index] = $_;
+    }
+
+    return;
 }
 
 # Same as print but adds a newline automatically
@@ -104,6 +102,23 @@ sub max ($$) {
 sub min ($$) {
     my ($a,$b) = @_;
     return ($a < $b) ? $a : $b;
+}
+
+# Reads a file and returns the text
+sub readfile {
+    croak _invalid_call('readfile', 'file') if scalar(@_) != 1;
+
+    my $file = shift;
+    open(IN, '<', $file) or croak $!;
+
+    my $text = '';
+    while (<IN>) {
+        append($text, $_);
+    }
+
+    close(IN);
+
+    return $text;
 }
 
 # Stringizes one or more arguments
