@@ -14,9 +14,9 @@ _GetParagraphs	class_doctool	/^sub _GetParagraphs {$/;"	s
 _ParseClass	class_doctool	/^sub _ParseClass {$/;"	s
 _ParseFormatTags	class_doctool	/^sub _ParseFormatTags {$/;"	s
 _ParseProperty	class_doctool	/^sub _ParseProperty {$/;"	s
+_ParseSignal	class_doctool	/^sub _ParseSignal {$/;"	s
 _delete_block_attr	class_doctool	/^sub _delete_block_attr ($$$) {$/;"	s
 delete_block_class	class_doctool	/^sub delete_block_class ($$) {return _delete_block_attr($_[0], 'class', $_[1]);}$/;"	s
 delete_block_id	class_doctool	/^sub delete_block_id ($$) {return _delete_block_attr($_[0], 'id', $_[1]);}$/;"	s
 g_sec_tag_keys	class_doctool	/^my %g_sec_tag_keys = qw(desc description note note);$/;"	v
-g_sec_tags	class_doctool	/^my $g_sec_tags = qr\/desc|note\/;$/;"	v
 g_sections	class_doctool	/^my %g_sections;$/;"	v

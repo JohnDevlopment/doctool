@@ -9,7 +9,6 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 
 use Doctool::Getline;
-use Doctool::Property;
 use Doctool::Util qw(append echo str push_back);
 use String::Util qw(ltrim rtrim hascontent contains);
 use Readonly;
@@ -84,7 +83,8 @@ sub Doctool {
 
     my %parse_subs = (
         export => \&_ParseProperty,
-        class => \&_ParseClass
+        class => \&_ParseClass,
+        signal => \&_ParseSignal
     );
 
     # Clear global hash
@@ -130,7 +130,7 @@ sub _BuildHTML {
     $html =~ s/\[CLASSNAME\]/$header{'class'}/g;
     $html =~ s/\[BRIEF\]/$header{'brief'}/;
 
-    {
+    if ( $header{'description'}->$#* >= 1 ) {
         # Description
         my $text = '';
         for my $i (0 .. $header{'description'}->$#*) {
@@ -145,77 +145,15 @@ sub _BuildHTML {
             $text = $text . sprintf(q^<div class="note">%s</div>^, $buf);
         }
         $html =~ s/\[DESC\]/$text/;
+    } else {
+        $html = delete_block_id($html, 'description');
     }
 
     # Properties section
     if (! exists $g_sections{'properties'}) {
         $html = delete_block_id($html, 'properties');
     } else {
-        my $table = "<table class=\"bicolor\"><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
-        my $properties = $g_sections{'properties'};
-        my $propdescs = '';
-
-        Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
-
-        my $r_fixquotes = sub {
-            no warnings;
-            my $text = shift;
-            my $type = shift;
-            if ($type eq 'String') {
-                my $quote = chr(0x22);
-                return $text if ($text =~ /^\x22.*\x22/); # return if properly quoted
-                return $text =~ s/\x27/$quote/rg; # replace single quotes with double quotes
-            }
-            return $text;
-        };
-
-        foreach my $prop (@$properties) {
-            my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type(), $prop->name(), $prop->default());
-            append($table, $text . "\n");
-
-            my $propdesc = $c_propdesc_html;
-            my $propname = $prop->name();
-
-            $propdesc =~ s/\[PROPNAME\]/$propname/g;
-            {
-                my $temp = &$r_fixquotes($prop->default(), $prop->type());
-                $propdesc =~ s/\[PROPDEFAULT\]/$temp/;
-            }
-            $propdesc =~ s/\[PROPSIG\]/$prop->type() . ' ' . $propname/e;
-
-            # Property setter function
-            if ($prop->setter() ne '') {
-                $propdesc =~ s/\[PROPSETTER\]/$prop->setter()/e;
-            } else {
-                $propdesc = delete_block_id($propdesc, "${propname}_setter");
-            }
-
-            # Property getter function
-            if ($prop->getter() ne '') {
-                $propdesc =~ s/\[PROPGETTER\]/$prop->getter()/e;
-            } else {
-                $propdesc = delete_block_id($propdesc, "${propname}_getter");
-            }
-
-            # Property description
-            {
-                my $r_array = $prop->description();
-                if (ref($r_array) eq 'ARRAY') {
-                    $text = '';
-                    foreach (@$r_array) {
-                        append($text, '<p>' . $_ . '</p>');
-                    }
-                    $propdesc =~ s/\[PROPDESC\]/$text/e;
-                } else {
-                    $propdesc =~ s/\[PROPDESC\]//;
-                }
-            }
-
-            append($propdescs, $propdesc);
-        }
-        append($table, "</table>");
-
-        $html =~ s{\[PROPERTIES\]}{$table . "\n<br>\n" . $propdescs}e;
+        _HTMLProperty(\$html);
     }
 
     # Methods section
@@ -226,6 +164,8 @@ sub _BuildHTML {
     # Signals section
     if (! exists $g_sections{'signals'}) {
         $html = delete_block_id($html, 'signals');
+    } else {
+        _HTMLSignal(\$html);
     }
 
     $html = _ParseFormatTags($html);
@@ -235,6 +175,125 @@ sub _BuildHTML {
     $html =~ s/\n{2,}/\n/g;
 
     return $html;
+}
+
+sub _HTMLSignal {
+    my $r_html = shift;
+    my $r_signals = $g_sections{'signals'};
+    my $signal_section = '';
+
+    Readonly my $c_signalref_html => Doctool::Util::readfile("$FindBin::Bin/c/signalref.html");
+
+    foreach my $signal (@$r_signals) {
+        my $signalref_html = $c_signalref_html;
+
+        $signalref_html =~ s/\[SIGNALSIG\]/$signal->as_text()/e;
+        $signalref_html =~ s/\[SIGNALNAME\]/$signal->get('name')/eg;
+        $signalref_html =~ s/\[SIGNALBRIEF\]/$signal->get('brief')/eg;
+
+        # Add paragraphs to the signal section
+        my $text = '';
+        my $r_signaldescs = $signal->get('description');
+        if ( ref($r_signaldescs) eq 'ARRAY' ) {
+            for my $i (0 .. $r_signaldescs->$#*) {
+                append($text, '<p>' . $r_signaldescs->[$i] . '</p>');
+            }
+        }
+        $signalref_html =~ s/\[SIGNALDESC\]/$text/;
+
+        append($signal_section, $signalref_html . '<hr class="faint-line">');
+    }
+
+    {
+        my $temp = rindex($signal_section, '<hr class="faint-line">');
+        if ($temp >= 0) {
+            substr($signal_section, $temp, length('<hr class="faint-line">')) = '';
+        }
+    }
+
+    $$r_html =~ s/\[SIGNALS\]/$signal_section/;
+}
+
+sub _HTMLProperty {
+    my $html = shift;
+    my $table = "<table class=\"bicolor\"><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
+    my $properties = $g_sections{'properties'};
+    my $propdescs = '';
+
+    Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
+
+    my $r_fixquotes = sub {
+        no warnings;
+        my $text = shift;
+        my $type = shift;
+        if ($type eq 'String') {
+            my $quote = chr(0x22);
+            return $text if ($text =~ /^\x22.*\x22/); # return if properly quoted
+            return $text =~ s/\x27/$quote/rg; # replace single quotes with double quotes
+        }
+        return $text;
+    };
+
+    foreach my $prop (@$properties) {
+        my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type(), $prop->name(), $prop->default());
+        append($table, $text . "\n");
+
+        my $propdesc = $c_propdesc_html;
+
+        $propdesc =~ s/\[PROPNAME\]/$prop->name()/eg;
+        $propdesc =~ s/\[PROPSIG\]/$prop->type() . ' ' . $prop->name()/e;
+
+        my $deleted = 0;
+
+        # Default value
+        if ($prop->default() ne '') {
+            my $temp = &$r_fixquotes($prop->default(), $prop->type());
+            $propdesc =~ s/\[PROPDEFAULT\]/$temp/;
+        } else {
+            $propdesc = delete_block_id($propdesc, $prop->name() . "_default");
+            ++$deleted;
+        }
+
+        # Property setter function
+        if ($prop->setter() ne '') {
+            $propdesc =~ s/\[PROPSETTER\]/$prop->setter()/e;
+        } else {
+            $propdesc = delete_block_id($propdesc, $prop->name() . "_setter");
+            ++$deleted;
+        }
+
+        # Property getter function
+        if ($prop->getter() ne '') {
+            $propdesc =~ s/\[PROPGETTER\]/$prop->getter()/e;
+        } else {
+            $propdesc = delete_block_id($propdesc, $prop->name() . "_getter");
+            ++$deleted;
+        }
+
+        # If all table elements are deleted
+        if ($deleted >= 3) {
+            $propdesc = delete_block_class($propdesc, "bicolor_light");
+        }
+
+        # Property description
+        {
+            my $r_array = $prop->description();
+            if (ref($r_array) eq 'ARRAY') {
+                $text = '';
+                foreach (@$r_array) {
+                    append($text, '<p>' . $_ . '</p>');
+                }
+                $propdesc =~ s/\[PROPDESC\]/$text/e;
+            } else {
+                $propdesc =~ s/\[PROPDESC\]//;
+            }
+        }
+
+        append($propdescs, $propdesc);
+    }
+    append($table, "</table>");
+
+    $$html =~ s{\[PROPERTIES\]}{$table . "\n<br>\n" . $propdescs}e;
 }
 
 sub _FormatTypeNames {
@@ -359,8 +418,8 @@ sub _DetectDocType {
                 }
             }
         }
-        when (/^(signal|enum|func)\b.*/m) {
-            $doc_type = $1;
+        when (/^signal[ \t]+\w+/m) {
+            $doc_type = 'signal';
         }
         default {1;}
     }
@@ -391,6 +450,7 @@ sub _GetParagraphs {
             my $add_to_graff = $1;
 
             # New paragraph, and the first thing we see is a section tag
+            # FIXME: this might present an issue for the cases where $g_sec_tags is found directly one line below a paragraph (no empty line above it)
             if ($graff eq '' && $line =~ /^#\s*\@$g_sec_tags/) {
                 $line = '';
                 prevline($text, $index);
@@ -412,6 +472,45 @@ sub _GetParagraphs {
     $$r_index = $index;
 
     return \@pars;
+}
+
+sub _ParseSignal {
+    use Doctool::Signal;
+    use Doctool::Arg;
+
+    my $text = shift;
+    my $signal = Doctool::Signal->new();
+
+    # Name of the signal
+    $text =~ /^signal\s+(\w+)/m;
+    $signal->set('name', $1);
+
+    # Signal parameters
+    while ( $text =~ /^#\s*\@arg\s*(\w+)\s+(\w+)\s+(.+)/gm ) {
+        my $arg = Doctool::Arg->new();
+        $arg->set('type', $1);
+        $arg->set('name', $2);
+        $arg->set('description', $3);
+        $signal->add_arg($arg);
+    }
+
+    # Brief description
+    if ($text =~ /^##\s*(.+)/) {
+        $signal->set('brief', $1);
+    }
+
+    # Full description
+    my $i = index($text, '@desc');
+    if ($i > 0) {
+        $i += length('@desc');
+        $signal->set('description', _GetParagraphs($text, \$i));
+    }
+
+    if (! exists $g_sections{'signals'}) {
+        $g_sections{'signals'} = ();
+    }
+
+    push_back( $g_sections{'signals'}->@*, $signal );
 }
 
 # _ParseClass string
@@ -463,6 +562,7 @@ sub _ParseClass {
 # Note: $g_section{'properties'} is a list of Doctool::Property objects.
 #       The attributes are: brief, name, default, type, description (ARRAY)
 sub _ParseProperty {
+    use Doctool::Property;
     my $text = shift;
     my $prop = Doctool::Property->new();
     my $index = 0;
@@ -473,7 +573,7 @@ sub _ParseProperty {
     $prop->brief( ($text =~ /^##\s*(.+)/) ? $1 : 'No description available' );
 
     # Name
-    die "REGEX failed" unless ($text =~ /^var[ \t]+(\w+)/m);
+    die "REGEX failed" unless ($text =~ /^(?:export.*)\s+?var[ \t]+(\w+)/m);
     $prop->name($1);
 
     # Property type

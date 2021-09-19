@@ -142,8 +142,7 @@ sub _invalid_call ($$) {
     return sprintf('Invalid call to Doctool::Util::%s : Usage is %s %s', $funcname, $funcname, $_[0]);
 }
 
-1;
-__END__
+=pod
 
 =head1 NAME
 
@@ -205,3 +204,9 @@ Prints the contents of a hash. The parameter can be any valid hash or hash refer
 =item str( arg, ... )
 
 Concatenates the arguments into a string. Requires at least one argument.
+
+=back
+
+=cut
+
+1;
