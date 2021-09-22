@@ -9,9 +9,7 @@ use Carp;
 # ABSTRACT: Utility subroutines for Doctool
 
 our @ISA = qw(Exporter);
-#our @EXPORT = qw();
-our @EXPORT_OK = qw(append echo funcref max min printarray printhash push_back str readfile);
-#our @EXPORT_TAGS = ('all' => [@EXPORT, @EXPORT_OK]);
+our @EXPORT_OK = qw(append echo funcref max min printarray printhash push_back readfile str strextract);
 our $VERSION = v0.10;
 
 # Usage: append SCALAR $value
@@ -131,13 +129,85 @@ sub str ($@) {
     return $result;
 }
 
-# Returns the type of a variable
+# Extracts characters based on a pattern
+# Usage: strextract PATTERN STRING [GROUPLIST]
+sub strextract {
+    {
+        my $argc = scalar(@_);
+        if ($argc < 2) {
+            croak _argc_error("strextract", "pattern string [grouplist]");
+        }
+    }
+
+    # Switch to internal subroutine if in list context
+    if (wantarray) {
+        goto &_strextract_list;
+    }
+
+    my $pattern = shift;
+    my $string = shift;
+
+    my $success = $string =~ m/$pattern/;
+
+    my $group = shift;
+    if ($group) {
+        if ($success) {
+            my $r_group;
+            if (eval "\$r_group = \\\$$group") {
+                return $$r_group;
+            }
+        }
+    } elsif ($success) {
+        return $&;
+    }
+
+    return;
+}
+
+# Returns the type of a variable (must be an lvalue)
 sub typeof (\[@$%&]) {
     my $ref = shift;
     return ref($ref);
 }
 
-sub _invalid_call ($$) {
+# _argc_error FUNCTION PARAMS
+sub _argc_error {
+    my ($function,$params) = @_;
+    return sprintf(q/Invalid call to %s: should be %s %s/, $function, $params);
+}
+
+# _strextract_list PATTERN STRING [GROUPLIST]
+sub _strextract_list {
+    my $pattern = shift;
+    my $string = shift;
+
+    my @results = ();
+
+    my $success = $string =~ m/$pattern/;
+    return if (! $success);
+
+    # Return the whole matched pattern
+    if (scalar(@_) == 0) {
+        while ($string =~ m/$pattern/g) {
+            push(@results, $&);
+        }
+        return ($#results >= 1) ? @results : undef;
+    }
+
+    # Make a reference to each group match variable:
+    # \$1, \$2, and so on.
+    foreach my $group (@_) {
+        my $r_group;
+
+        if (eval "\$r_group = \\\$$group") {
+            push(@results, $$r_group);
+        }
+    }
+
+    return ($#results >= 1) ? @results : undef;
+}
+
+sub _invalid_call {
     my $funcname = shift;
     return sprintf('Invalid call to Doctool::Util::%s : Usage is %s %s', $funcname, $funcname, $_[0]);
 }
@@ -204,6 +274,44 @@ Prints the contents of a hash. The parameter can be any valid hash or hash refer
 =item str( arg, ... )
 
 Concatenates the arguments into a string. Requires at least one argument.
+
+=item strextract( PATTERN, STRING )
+
+=item strextract( PATTERN, STRING, GROUPLIST )
+
+Extracts a substring from I<STRING> according to I<PATTERN>, which is expected to be a precompiled
+regular expression. Use the qr() function (documented in L<perlfunc/qrE<sol>STRINGE<sol>>) to make
+I<PATTERN>.
+
+In the first form, strextract() extracts the portion of I<STRING> that matches I<PATTERN>, or
+an empty string in the case of failure.
+If it is called in a scalar context, only the first match is returned.
+But in a list context a list of all matching substrings are returned.
+
+In the second form, strextract() returns one or matches of subexpressions in I<PATTERN>.
+In a scalar context only the first match is returned.
+In a list context all matches are returned as an array, and each element corresponds to a group
+number parameter. For example, C<strextract(qr/(like).*(donuts)/, $string, 1, 2)> will return
+a list of strings that correspond to $1 and $2, respectively.
+
+In all examples, assume the following:
+
+    my $string = "I like donuts";
+
+Example 1 (returning a whole match):
+
+    my $match = strextract(qr/donuts/, $string);
+    echo $match; # prints "donuts"
+
+Example 2 (returning a subgroup of a match):
+
+    my $match = strextract(qr/do(nuts)/, $string, 1);
+    echo $string, "I like", $match; # prints "I like donuts! I like nuts"
+
+Example 3 (getting multiple subexpression matches):
+
+    my @matches = strextract(qr/(like).*(donuts)/, $string, 1, 2);
+    echo @matches; # prints "like donuts"
 
 =back
 

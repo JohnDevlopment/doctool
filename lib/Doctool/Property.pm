@@ -6,6 +6,22 @@ use warnings;
 use Exporter;
 use Carp;
 
+our @ATTRIBUTES = qw(brief default description getter name setter type);
+
+=head1 NAME
+
+Doctool::Property - Data container for GDScript exported properties
+
+=head1 METHODS
+
+=over 4
+
+=item new(  )
+
+Constructs a C<Doctool::Property> object and returns a reference to it.
+
+=cut
+
 # Construct a new object
 sub new {
     my $class = shift;
@@ -15,7 +31,7 @@ sub new {
         type => 'int',
         default => '',
         brief => '',
-        description => '',
+        description => [],
         getter => '',
         setter => ''
     };
@@ -24,96 +40,82 @@ sub new {
     return $self;
 }
 
-# Set a brief one-line description
-sub brief {
-    my $self = shift;
-    my $argc = @_;
+=item get( ATTR )
 
-    if ($argc > 1) {
-        croak _print_arg_error('brief', '[value]');
-    }
+Obtains the value associated with I<ATTR>.
+I<ATTR> must be one of the attributes defined in L</ATTRIBUTES>.
 
-    return $self->_set_get_attribute('brief', ($argc == 1) ? $_[0] : undef);
-}
+=cut
 
-# Set the default value
-sub default {
-    my $self = shift;
-    my $argc = @_;
-
-    if ($argc > 1) {
-        croak _print_arg_error('default', '[value]');
-    }
-
-    return $self->_set_get_attribute('default', ($argc == 1) ? $_[0] : undef);
-}
-
-# Set the full description
-sub description {
+sub get {
     my $self = shift;
 
-    if (scalar(@_) == 0) {
-        return $self->{'description'};
-    }
+    croak _print_arg_error('get', 'arg') if scalar(@_) != 1;
 
-    if ( ref($_[0]) eq 'ARRAY' ) {
-        $self->{'description'} = shift;
-        return;
-    }
+    my $param = shift;
+    _check_attribute_exists($param);
 
-    my @array = @_;
-    $self->{'description'} = \@array;
+    return $self->{$param};
 }
 
-# Set or get the name of a getter function
-sub getter {
+=item set( ATTR, VALUE )
+
+Sets the value associated with I<ATTR>.
+I<ATTR> must be one of the attributes defined in L</ATTRIBUTES>.
+
+=back
+
+=cut
+
+# Usage: set $arg $value
+sub set {
     my $self = shift;
-    my $argc = @_;
 
-    if ($argc > 1) {
-        croak _print_arg_error('getter', '[funcname]');
-    }
+    croak _print_arg_error('set', 'arg value') if scalar(@_) != 2;
 
-    return $self->_set_get_attribute('getter', ($argc == 1) ? $_[0] : undef);
+    my $param = shift;
+    _check_attribute_exists($param);
+
+    $self->{$param} = shift;
 }
 
-# Get or set the name of the property
-sub name {
-    my $self = shift;
-    my $argc = @_;
+=head1 ATTRIBUTES
 
-    if ($argc > 1) {
-        croak _print_arg_error('name', '[value]');
-    }
+These are the attributes which are recognized by set() and get().
 
-    return $self->_set_get_attribute('name', ($argc == 1) ? $_[0] : undef);
-}
+=over 4
 
-# Set or get the name of a setter function
-sub setter {
-    my $self = shift;
-    my $argc = @_;
+=item brief
 
-    if ($argc > 1) {
-        croak _print_arg_error('setter', '[funcname]');
-    }
+A brief one-line description of the property.
 
-    return $self->_set_get_attribute('setter', ($argc == 1) ? $_[0] : undef);
-}
+=item default
 
-# Get or set the property's type
-sub type {
-    my $self = shift;
-    my $argc = @_;
+The property's default value.
 
-    if ($argc > 1) {
-        croak _print_arg_error('type', '[value]');
-    }
+=item description
 
-    return $self->_set_get_attribute('type', ($argc == 1) ? $_[0] : undef);
-}
+Full description of the property.
 
-# Instanced internal functions
+=item getter
+
+The property's getter function.
+
+=item name
+
+The name of the property.
+
+=item setter
+
+The property's setter function.
+
+=item type
+
+The property's type.
+
+=back
+
+=cut
 
 # Usage: _set_get_attribute attribute value
 sub _set_get_attribute {
@@ -131,11 +133,20 @@ sub _set_get_attribute {
     return;
 }
 
-# Static internal functions
-
+# Usage: _print_arg_error $funcname $paramstring
 sub _print_arg_error {
     my ($funcname,$params) = @_;
     return sprintf('Invalid call to Doctool::Property::%s: usage is %s %s', $funcname, $funcname, $params);
+}
+
+# Usage: _check_attribute_exists $string
+sub _check_attribute_exists {
+    no warnings 'experimental::smartmatch';
+    my $attr = shift;
+
+    if ( ! ($attr ~~ @ATTRIBUTES) ) {
+        croak qq/Invalid attribute "$attr": must be one of / . join(', ', @ATTRIBUTES);
+    }
 }
 
 1;

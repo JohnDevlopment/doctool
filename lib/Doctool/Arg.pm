@@ -5,24 +5,64 @@ use strict;
 use warnings;
 use Carp;
 
-our @ATTRIBUTES = qw(name type default description);
+our @ATTRIBUTES = qw(default name type);
+
+=head1 NAME
+
+Doctool::Arg - Data container for generic typed arguments
+
+=head1 METHODS
+
+=over 4
+
+=item new(  )
+
+Constructs a C<Doctool::Arg> object and returns a reference to it.
+
+=cut
 
 sub new {
     my $class = shift;
     croak 'No arguments accepted' if scalar(@_) != 0;
 
     my $self = {
-        type => 'example',
+        type => 'Variant',
         name => '',
         default => '',
-        description => ''
+        description => 'A variant type'
     };
     bless $self, $class;
 
     return $self;
 }
 
-# Usage: get $arg
+=item as_text(  )
+
+Returns a string which describes the argument.
+Without a default value the string will look something like this: C<int example>.
+But with a default value the string can look like this: C<int example = 0>.
+
+=cut
+
+sub as_text {
+    my $self = shift;
+
+    croak _print_arg_error('as_text', '') if scalar(@_) != 0;
+
+    my $text = $self->{'type'} . ' ' . $self->{'name'};
+    if ($self->{'default'}) {
+        $text = $text . ' = ' . $self->{'default'};
+    }
+    return $text;
+}
+
+=item get( ATTR )
+
+Obtains the value associated with I<ATTR>.
+I<ATTR> must be one of the attributes defined in L</ATTRIBUTES>.
+
+=cut
+
 sub get {
     my $self = shift;
 
@@ -31,12 +71,16 @@ sub get {
     my $param = shift;
     _check_attribute_exists($param);
 
-    #croak qq/Invalid parameter "$param": must be a non-reference scalar/ if ref($param) ne '';
-
     return $self->{$param};
 }
 
-# Usage: set $arg $value
+=item set( PARAM, VALUE )
+
+Sets the value associated with I<ATTR>.
+I<ATTR> must be one of the attributes defined in L</ATTRIBUTES>.
+
+=cut
+
 sub set {
     my $self = shift;
 
@@ -45,10 +89,32 @@ sub set {
     my $param = shift;
     _check_attribute_exists($param);
 
-    #croak qq/Invalid parameter "$param": must be a non-reference scalar/ if ref($param) ne '';
-
     $self->{$param} = defined($_[0]) ? $_[0] : '';
 }
+
+=back
+
+=head1 ATTRIBUTES
+
+These are the attributes which are recognized by set() and get().
+
+=over 4
+
+=item default
+
+The default value.
+
+=item name
+
+The name of the argument.
+
+=item type
+
+Argument type.
+
+=back
+
+=cut
 
 sub _check_attribute_exists {
     no warnings 'experimental::smartmatch';
@@ -66,33 +132,5 @@ sub _print_arg_error {
 
     return sprintf('Invalid call to Doctool::Arg::%s: usage is %s %s', $funcname, $funcname, $params);
 }
-
-=pod
-
-=head1 NAME
-
-Arg - Data container for generic typed arguments
-
-=head1 METHODS
-
-The following methods are exposed:
-
-=over 4
-
-=item get( PARAM )
-
-Retrieves the value of an attribute. For a list of valid attributes, check L</ATTRIBUTES>
-
-=item set( PARAM, VALUE )
-
-Sets an attribute to b<VALUE>. For a list of valid attributes, check L</ATTRIBUTES>
-
-=back
-
-=head1 ATTRIBUTES
-
-Valid attrutes are: default, description, name, type
-
-=cut
 
 1;

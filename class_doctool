@@ -9,7 +9,7 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 
 use Doctool::Getline;
-use Doctool::Util qw(append echo str push_back);
+use Doctool::Util qw(append echo str push_back strextract);
 use String::Util qw(ltrim rtrim hascontent contains);
 use Readonly;
 
@@ -41,11 +41,11 @@ use constant COMPLEX_TYPES => qw(
     Object
 );
 
-# TODO: #1 uncomment this after finishing todo #2
-#use constant PROP_DESC_TEMPLATE => <<EOF;
-#afl;sadjfkjasldfkjhsakjdhgfkjsdlhgkj
-#asfafsdafsdfds
-#EOF
+use constant {
+    GET_FIELD_ARG_NAME => 0,
+    GET_FIELD_ARG_TYPE => 1,
+    GET_FIELD_ARG_DEFAULT => 2
+};
 
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
@@ -84,11 +84,17 @@ sub Doctool {
     my %parse_subs = (
         export => \&_ParseProperty,
         class => \&_ParseClass,
-        signal => \&_ParseSignal
+        signal => \&_ParseSignal,
+        method => \&_ParseMethod
     );
 
     # Clear global hash
-    %g_sections = ();
+    %g_sections = (
+        signals => [],
+        methods => [],
+        properties => [],
+        header => []
+    );
 
     # Standardize line endings:
     $text =~ s{\r\n}{\n}g; 	# DOS to Unix
@@ -159,6 +165,8 @@ sub _BuildHTML {
     # Methods section
     if (! exists $g_sections{'methods'}) {
         $html = delete_block_id($html, 'methods');
+    } else {
+        _HTMLMethod(\$html);
     }
 
     # Signals section
@@ -168,13 +176,70 @@ sub _BuildHTML {
         _HTMLSignal(\$html);
     }
 
-    $html = _ParseFormatTags($html);
-    $html = _FormatTypeNames($html);
+    _ParseFormatTags(\$html);
+    _FormatTypeNames(\$html);
 
     $html =~ s/<!--.*?-->//g;
-    $html =~ s/\n{2,}/\n/g;
+    $html = String::Util::crunchlines($html);
 
     return $html;
+}
+
+sub _HTMLMethod {
+    my $r_html = shift;
+    my $r_methods = $g_sections{'methods'};
+
+    Readonly my %c_abbr_titles => (
+        virtual => 'This method should typically be overridden by the use to have any effect.',
+        const => 'This method does not modify any of the instance variables.'
+    );
+
+    Readonly my $c_method_desc_template => Doctool::Util::readfile("$FindBin::Bin/c/methoddesc.html");
+
+    my $method_section = '';
+    foreach my $method (@$r_methods) {
+        my $method_html = $c_method_desc_template;
+
+        $method_html =~ s/\[METHODNAME\]/$method->get('name')/e;
+
+        {
+            my $text = $method->as_text();
+
+            # Enclose the method name in b tags
+            my @idx = ( index($text, $method->get('name')), length($method->get('name')) );
+            substr($text, $idx[0], $idx[1], '<b>' . $method->get('name') . '</b>');
+
+            # Enclose the words "virtual" and "const" in abbr tags
+            $text =~ s{\b(virtual|const)\b}{
+                sprintf(q^<abbr title="%s">%s</abbr>^, $c_abbr_titles{$1}, $1);
+            }eg;
+
+            $method_html =~ s/\[METHODSIG\]/$text/;
+        }
+
+        my $graffs = '';
+
+        {
+            my $brief = $method->get('brief');
+            if ( hascontent($brief) ) {
+                append($graffs, '<p class="brief">' . $brief . '</p>');
+            }
+
+            my $r_method_descs = $method->get('description');
+            if ( ref($r_method_descs) eq 'ARRAY' ) {
+                for my $i (0 .. $r_method_descs->$#*) {
+                    append($graffs, '<p>' . $r_method_descs->[$i] . '</p>');
+                }
+            }
+            $method_html =~ s/\[METHODDESC\]/$graffs/;
+        }
+
+        append($method_section, $method_html);
+    }
+
+    $$r_html =~ s/\[METHODS\]/$method_section/;
+
+    delete $g_sections{'methods'};
 }
 
 sub _HTMLSignal {
@@ -215,7 +280,7 @@ sub _HTMLSignal {
 }
 
 sub _HTMLProperty {
-    my $html = shift;
+    my $r_html = shift;
     my $table = "<table class=\"bicolor\"><tr><th>Type</th><th>Name</th><th>Default</th></tr>";
     my $properties = $g_sections{'properties'};
     my $propdescs = '';
@@ -235,38 +300,38 @@ sub _HTMLProperty {
     };
 
     foreach my $prop (@$properties) {
-        my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->type(), $prop->name(), $prop->default());
+        my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->get('type'), $prop->get('name'), $prop->get('default'));
         append($table, $text . "\n");
 
         my $propdesc = $c_propdesc_html;
 
-        $propdesc =~ s/\[PROPNAME\]/$prop->name()/eg;
-        $propdesc =~ s/\[PROPSIG\]/$prop->type() . ' ' . $prop->name()/e;
+        $propdesc =~ s/\[PROPNAME\]/$prop->get('name')/eg;
+        $propdesc =~ s/\[PROPSIG\]/$prop->get('type') . ' ' . $prop->get('name')/e;
 
         my $deleted = 0;
 
         # Default value
-        if ($prop->default() ne '') {
-            my $temp = &$r_fixquotes($prop->default(), $prop->type());
+        if ($prop->get('default') ne '') {
+            my $temp = &$r_fixquotes($prop->get('default'), $prop->get('type'));
             $propdesc =~ s/\[PROPDEFAULT\]/$temp/;
         } else {
-            $propdesc = delete_block_id($propdesc, $prop->name() . "_default");
+            $propdesc = delete_block_id($propdesc, $prop->get('name') . "_default");
             ++$deleted;
         }
 
         # Property setter function
-        if ($prop->setter() ne '') {
-            $propdesc =~ s/\[PROPSETTER\]/$prop->setter()/e;
+        if ($prop->get('setter') ne '') {
+            $propdesc =~ s/\[PROPSETTER\]/$prop->get('setter')/e;
         } else {
-            $propdesc = delete_block_id($propdesc, $prop->name() . "_setter");
+            $propdesc = delete_block_id($propdesc, $prop->get('name') . "_setter");
             ++$deleted;
         }
 
         # Property getter function
-        if ($prop->getter() ne '') {
-            $propdesc =~ s/\[PROPGETTER\]/$prop->getter()/e;
+        if ($prop->get('getter') ne '') {
+            $propdesc =~ s/\[PROPGETTER\]/$prop->get('getter')/e;
         } else {
-            $propdesc = delete_block_id($propdesc, $prop->name() . "_getter");
+            $propdesc = delete_block_id($propdesc, $prop->get('name') . "_getter");
             ++$deleted;
         }
 
@@ -277,7 +342,7 @@ sub _HTMLProperty {
 
         # Property description
         {
-            my $r_array = $prop->description();
+            my $r_array = $prop->get('description');
             if (ref($r_array) eq 'ARRAY') {
                 $text = '';
                 foreach (@$r_array) {
@@ -293,11 +358,11 @@ sub _HTMLProperty {
     }
     append($table, "</table>");
 
-    $$html =~ s{\[PROPERTIES\]}{$table . "\n<br>\n" . $propdescs}e;
+    $$r_html =~ s{\[PROPERTIES\]}{$table . "\n<br>\n" . $propdescs}e;
 }
 
 sub _FormatTypeNames {
-    my $html = shift;
+    my $r_html = shift;
 
     my $pattern;
     {
@@ -305,7 +370,7 @@ sub _FormatTypeNames {
         $pattern = qr/$temp/;
     }
 
-    $html =~ s{\b($pattern)\b}{
+    $$r_html =~ s{\b($pattern)\b}{
         sprintf(q^<span class="podtype">%s</span>^, $1);
     }eg;
 
@@ -314,24 +379,23 @@ sub _FormatTypeNames {
         $pattern = qr/$temp/;
     }
 
-    $html =~ s{\b($pattern)}{
+    $$r_html =~ s{\b($pattern)}{
         sprintf(q^<span class="complextype">%s</span>^, $1);
     }eg;
-
-    return $html;
 }
 
 sub _ParseFormatTags {
-    my $html = shift;
+    my $r_html = shift;
     my %tags = (
         code => '<code>%s</code>',
         b => '<b>%s</b>',
         i => '<i>%s</i>',
+        a => '<i class="argument">%s</i>',
         function => '<code class="function">%s</code>',
         class => '<code class="class">%s</code>'
     );
 
-    $html =~ s/\@br/<br>/g;
+    $$r_html =~ s/\@br/<br>/g;
 
     my $pattern;
     {
@@ -339,7 +403,7 @@ sub _ParseFormatTags {
         $pattern = qr/$temp/;
     }
 
-    $html =~ s{
+    $$r_html =~ s{
         (?:
             \@($pattern)
             \s+
@@ -349,7 +413,7 @@ sub _ParseFormatTags {
         sprintf($tags{$1}, $2);
     }egx;
 
-    $html =~ s{
+    $$r_html =~ s{
         (?:
             \@($pattern)
             \{
@@ -359,8 +423,6 @@ sub _ParseFormatTags {
     }{
         sprintf($tags{$1}, $2);
     }egx;
-
-    return $html;
 }
 
 # Returns what type of documentation we're dealing with, also isolates the chunk for us
@@ -381,22 +443,32 @@ sub _DetectDocType {
     # Continue until you reach a non-comment line
     my $line;
     do {
-        use String::Util 'startswith';
+        use String::Util qw(startswith endswith);
         $line = getline($text, $index);
         if (! $is_func) {
             append($doc_text, $line . "\n");
+        } else {
+            if (startswith($line, "\t")) {
+                $line = '';
+            }
+            append($doc_text, $line . "\n");
         }
 
-        if ( startswith($line, 'func') ) {
+        if (startswith($line, 'func')) {
             $is_func = 1;
         }
     } while ( hascontent($line) );
 
+    # In the case of a one-line function, hide the code in the body
+    # func example() -> void: pass
+    #                         ^^^^
+    #                         Removes this
     if ($is_func) {
-        $doc_text =~ s/^(func.*:).*/$1/m;
+        $doc_text = rtrim($doc_text);
+        $doc_text =~ s/(func.*:).*$/$1/;
     }
 
-    $doc_text = ltrim($doc_text);
+    $doc_text = ltrim($doc_text); # Trim leading whitespace
 
     no warnings;
     given ($doc_text) {
@@ -420,6 +492,9 @@ sub _DetectDocType {
         }
         when (/^signal[ \t]+\w+/m) {
             $doc_type = 'signal';
+        }
+        when (/^func[ \t]+\w+[ \t]*\((.|\n)*\).*:/m) {
+            $doc_type = 'method';
         }
         default {1;}
     }
@@ -474,6 +549,92 @@ sub _GetParagraphs {
     return \@pars;
 }
 
+# _ParseMethod string \%hash_with_subs
+sub _ParseMethod {
+    use Doctool::Method;
+    use Doctool::Arg;
+    use String::Util 'collapse';
+
+    my $text = shift;
+    my $method = Doctool::Method->new();
+
+    # $1 = name
+    # $2 = args
+    # $3 = return type
+    unless (
+        $text =~ m{
+            ^          #
+            func       # Starts with the word "func" followed by spaces.
+            [ \t]+     #
+            (\w+)      # Function name = $1
+            [ \t]*     #
+            \(         #
+            (.*)       # Inside paranthesis are the parameters (can be multiline)
+            \)         # which, if defined, are captured in $2.
+            [ \t]*     #
+            (?:        # Optional return type
+                \s*    #
+                ->     # Needs '->'
+                \s*    #
+                (\w*)  # And the type name, captured in $3.
+            )?
+        }mxs
+    ) {
+        die "Malformed function: $text";
+    }
+
+    $method->set('name', $1); # Method name
+
+    # Argument list
+    if (defined $2) {
+        my @arglist = split(/\,[ \t\n]*/, $2);
+        foreach my $arg (@arglist) {
+            my $obj = Doctool::Arg->new();
+
+            {
+                # $1 = name
+                my $match = strextract(qr/(\w+)\:?/, $arg, 1);
+                die "Missing argument name: \"$arg\"" if (! $match);
+                $obj->set('name', $match);
+
+                # type
+                $match = strextract(qr/\:[ \t]*(\w+)/, $arg, 1);
+                $obj->set('type', ($match) ? $match : 'Variant');
+
+                # default
+                $match = strextract(qr/\=[ \t]*(.+)/, $arg, 1);
+                $obj->set('default', $match);
+            }
+
+            $method->add_arg($obj);
+        }
+    }
+
+    {
+        # Method return type
+        my $rettype = defined($3) ? collapse($3) : 'Variant';
+        $method->set('returntype', $rettype);
+
+        # Description
+        my $brief = strextract(qr/^##[ \t]*(.+)/, $text, 1);
+        if ( hascontent($brief) ) {
+            $method->set('brief', $brief);
+        }
+
+        my $i = index($text, '@desc');
+        if ($i > 0) {
+            $i += length('@desc');
+            $method->set('description', _GetParagraphs($text, \$i));
+        }
+    }
+
+    $method->set($1, 1) while ($text =~ /#[ \t]*\@(virtual|const)$/mg);
+
+    push($g_sections{'methods'}->@*, $method);
+}
+
+# _ParseSignal string
+# Fields: brief (string), desc(string, optional), name(string)
 sub _ParseSignal {
     use Doctool::Signal;
     use Doctool::Arg;
@@ -506,15 +667,11 @@ sub _ParseSignal {
         $signal->set('description', _GetParagraphs($text, \$i));
     }
 
-    if (! exists $g_sections{'signals'}) {
-        $g_sections{'signals'} = ();
-    }
-
-    push_back( $g_sections{'signals'}->@*, $signal );
+    push($g_sections{'signals'}->@*, $signal);
 }
 
 # _ParseClass string
-# Fields: brief (string), class (string), desc (string, optional), extends
+# Fields: brief (string), class (string), desc (string, optional), extends(string)
 sub _ParseClass {
     my $text = shift;
     my %header;
@@ -570,28 +727,28 @@ sub _ParseProperty {
 
     # Get the brief description first.
     $line = getline($text, $index);
-    $prop->brief( ($text =~ /^##\s*(.+)/) ? $1 : 'No description available' );
+    $prop->set( 'brief', ($text =~ /^##\s*(.+)/) ? $1 : 'No description available' );
 
     # Name
-    die "REGEX failed" unless ($text =~ /^(?:export.*)\s+?var[ \t]+(\w+)/m);
-    $prop->name($1);
+    die "REGEX failed" unless ($text =~ /^(?:export.*)?\s*var\s+(\w+)/m);
+    $prop->set('name', $1);
 
     # Property type
-    die str("Property ", $prop->name(), " needs a type") unless ($text =~ /^#\s*\@type\s+(\w+)/m);
-    $prop->type($1);
+    die str("Property ", $prop->get('name'), " needs a type") unless ($text =~ /^#\s*\@type\s+(\w+)/m);
+    $prop->set('type', $1);
 
     # Default
     if ($text =~ /\=\s*(\N+)/) {
-        $prop->default($1);
+        $prop->set('default', $1);
     }
 
     # Getter/setter function
     while ($text =~ /\@([sg]etter)[ \t]+(\w+\(.*\))/g) {
         my $tag = $1;
         if ($tag eq 'setter') {
-            $prop->setter($2);
+            $prop->set('setter', $2);
         } else {
-            $prop->getter($2);
+            $prop->set('getter', $2);
         }
     }
 
@@ -613,15 +770,11 @@ sub _ParseProperty {
             my $i = index($line, '@' . $1);
             $index = ($index - length($line) - 1) + $i + length('@' . $1);
 
-            $prop->description(_GetParagraphs($text, \$index));
+            $prop->set('description', _GetParagraphs($text, \$index));
         }
     } while (index($line, '#') == 0);
 
-    if (! exists $g_sections{'properties'}) {
-        $g_sections{'properties'} = ();
-    }
-
-    push_back($g_sections{'properties'}->@*, $prop);
+    push($g_sections{'properties'}->@*, $prop);
 }
 
 # Read file given by argument
