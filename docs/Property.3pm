@@ -128,53 +128,48 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "Doctool::Signal 3"
-.TH Doctool::Signal 3 "2021-09-22" "perl v5.26.1" "User Contributed Perl Documentation"
+.IX Title "Doctool::Property 3"
+.TH Doctool::Property 3 "2021-09-22" "perl v5.26.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-Doctool::Signal \- Data container for GDScript signals
+Doctool::Property \- Data container for GDScript exported properties
 .SH "METHODS"
 .IX Header "METHODS"
 .IP "new(  )" 4
 .IX Item "new( )"
-Constructs a \f(CW\*(C`Doctool::Signal\*(C'\fR object and returns a reference to it.
-.IP "add_arg( \s-1ARG\s0 )" 4
-.IX Item "add_arg( ARG )"
-Adds \fI\s-1ARG\s0\fR to the list of method arguments.
-\&\fI\s-1ARG\s0\fR must be a \f(CW\*(C`Doctool::Arg\*(C'\fR object.
-.IP "as_text(  )" 4
-.IX Item "as_text( )"
-Returns a string representation of the signal.
-Supposing we have a signal named \*(L"test\*(R" with two arguments, one \f(CW\*(C`int\*(C'\fR named 'a' and one \f(CW\*(C`bool\*(C'\fR
-named 'b', the output would be \f(CW\*(C`test(int a, bool b)\*(C'\fR.
+Constructs a \f(CW\*(C`Doctool::Property\*(C'\fR object and returns a reference to it.
 .IP "get( \s-1ATTR\s0 )" 4
 .IX Item "get( ATTR )"
 Obtains the value associated with \fI\s-1ATTR\s0\fR.
 \&\fI\s-1ATTR\s0\fR must be one of the attributes defined in \*(L"\s-1ATTRIBUTES\*(R"\s0.
-.IP "set( \s-1PARAM, VALUE\s0 )" 4
-.IX Item "set( PARAM, VALUE )"
+.IP "set( \s-1ATTR, VALUE\s0 )" 4
+.IX Item "set( ATTR, VALUE )"
 Sets the value associated with \fI\s-1ATTR\s0\fR.
 \&\fI\s-1ATTR\s0\fR must be one of the attributes defined in \*(L"\s-1ATTRIBUTES\*(R"\s0.
-.IP "set_arg( \s-1INDEX, ARG\s0 )" 4
-.IX Item "set_arg( INDEX, ARG )"
-Replaces the argument at \fI\s-1INDEX\s0\fR with \fI\s-1ARG\s0\fR.
-\&\fI\s-1ARG\s0\fR must be a \f(CW\*(C`Doctool::Arg\*(C'\fR object.
 .SH "ATTRIBUTES"
 .IX Header "ATTRIBUTES"
 These are the attributes which are recognized by \fIset()\fR and \fIget()\fR.
-.IP "args" 4
-.IX Item "args"
-A list of \f(CW\*(C`Doctool::Arg\*(C'\fR objects which specify the parameters for the signal.
-Do not set this directly through \fIset()\fR. Instead use \fIadd_arg()\fR or \fIset_arg()\fR.
 .IP "brief" 4
 .IX Item "brief"
-A brief one-line description of the signal.
+A brief one-line description of the property.
+.IP "default" 4
+.IX Item "default"
+The property's default value.
 .IP "description" 4
 .IX Item "description"
-A full description of the signal.
+Full description of the property.
+.IP "getter" 4
+.IX Item "getter"
+The property's getter function.
 .IP "name" 4
 .IX Item "name"
-The name of the signal.
+The name of the property.
+.IP "setter" 4
+.IX Item "setter"
+The property's setter function.
+.IP "type" 4
+.IX Item "type"
+The property's type.

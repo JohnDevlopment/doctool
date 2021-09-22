@@ -1,0 +1,137 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title></title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body>
+
+
+
+<ul id="index">
+  <li><a href="#NAME">NAME</a></li>
+  <li><a href="#VERSION">VERSION</a></li>
+  <li><a href="#SYNOPSIS">SYNOPSIS</a></li>
+  <li><a href="#EXPORT">EXPORT</a></li>
+</ul>
+
+<h1 id="NAME">NAME</h1>
+
+<p>Doctool::Util - Utility subroutines for Doctool</p>
+
+<h1 id="VERSION">VERSION</h1>
+
+<p>Version 0.10</p>
+
+<h1 id="SYNOPSIS">SYNOPSIS</h1>
+
+<p>This module exports a number of subroutines that help with the functionality of Doctool. Strictly speaking, these subroutines are not only useful for <i>Doctool</i>; they can be used in general practice.</p>
+
+<h1 id="EXPORT">EXPORT</h1>
+
+<p>The following subroutines are exported by this module.</p>
+
+<dl>
+
+<dt id="append-variable-value">append( variable, value )</dt>
+<dd>
+
+<p>Appends <i>value</i> to the end of <i>variable</i> and returns a reference to it. Accepts an array or a scalar.</p>
+
+</dd>
+<dt id="echo-arg">echo( arg, ... )</dt>
+<dd>
+
+<p>Prints out one or more arguments using the <code>print</code> function. The difference is that echo automatically appends a newline character</p>
+
+</dd>
+<dt id="funcref-funcname">funcref( funcname )</dt>
+<dd>
+
+<p>Returns a reference to the function <i>funcname</i> if it exists, otherwise it returns <code>undef</code>.</p>
+
+<p>Use this function to test for the existtence of a particular function.</p>
+
+</dd>
+<dt id="max-a-b">max( a, b )</dt>
+<dd>
+
+<p>Returns the greater of the two parameters.</p>
+
+</dd>
+<dt id="min-a-b">min( a, b )</dt>
+<dd>
+
+<p>Returns the lesser of the two parameters.</p>
+
+</dd>
+<dt id="printarray-array">printarray( array )</dt>
+<dd>
+
+</dd>
+<dt id="printarray-arrayref">printarray( arrayref )</dt>
+<dd>
+
+<p>Prints the contents of an array. The parameter can be any valid array or array reference.</p>
+
+</dd>
+<dt id="printhash-hash">printhash( hash )</dt>
+<dd>
+
+</dd>
+<dt id="printhash-hashref">printhash( hashref )</dt>
+<dd>
+
+<p>Prints the contents of a hash. The parameter can be any valid hash or hash reference.</p>
+
+</dd>
+<dt id="str-arg">str( arg, ... )</dt>
+<dd>
+
+<p>Concatenates the arguments into a string. Requires at least one argument.</p>
+
+</dd>
+<dt id="strextract-PATTERN-STRING">strextract( PATTERN, STRING )</dt>
+<dd>
+
+</dd>
+<dt id="strextract-PATTERN-STRING-GROUPLIST">strextract( PATTERN, STRING, GROUPLIST )</dt>
+<dd>
+
+<p>Extracts a substring from <i>STRING</i> according to <i>PATTERN</i>, which is expected to be a precompiled regular expression. Use the qr() function (documented in <a>&quot;qr/STRING/&quot; in perlfunc</a>) to make <i>PATTERN</i>.</p>
+
+<p>In the first form, strextract() extracts the portion of <i>STRING</i> that matches <i>PATTERN</i>, or an empty string in the case of failure. If it is called in a scalar context, only the first match is returned. But in a list context a list of all matching substrings are returned.</p>
+
+<p>In the second form, strextract() returns one or matches of subexpressions in <i>PATTERN</i>. In a scalar context only the first match is returned. In a list context all matches are returned as an array, and each element corresponds to a group number parameter. For example, <code>strextract(qr/(like).*(donuts)/, $string, 1, 2)</code> will return a list of strings that correspond to $1 and $2, respectively.</p>
+
+<p>In all examples, assume the following:</p>
+
+<pre><code>    my $string = &quot;I like donuts&quot;;</code></pre>
+
+<p>Example 1 (returning a whole match):</p>
+
+<pre><code>    my $match = strextract(qr/donuts/, $string);
+    echo $match; # prints &quot;donuts&quot;</code></pre>
+
+<p>Example 2 (returning a subgroup of a match):</p>
+
+<pre><code>    my $match = strextract(qr/do(nuts)/, $string, 1);
+    echo $string, &quot;I like&quot;, $match; # prints &quot;I like donuts! I like nuts&quot;</code></pre>
+
+<p>Example 3 (getting multiple subexpression matches):</p>
+
+<pre><code>    my @matches = strextract(qr/(like).*(donuts)/, $string, 1, 2);
+    echo @matches; # prints &quot;like donuts&quot;</code></pre>
+
+</dd>
+</dl>
+
+
+</body>
+
+</html>
+
+

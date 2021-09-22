@@ -128,28 +128,46 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "Doctool::Signal 3"
-.TH Doctool::Signal 3 "2021-09-22" "perl v5.26.1" "User Contributed Perl Documentation"
+.IX Title "Doctool::Method 3"
+.TH Doctool::Method 3 "2021-09-22" "perl v5.26.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-Doctool::Signal \- Data container for GDScript signals
+Doctool::Method \- Data container for GDScript methods
 .SH "METHODS"
 .IX Header "METHODS"
 .IP "new(  )" 4
 .IX Item "new( )"
-Constructs a \f(CW\*(C`Doctool::Signal\*(C'\fR object and returns a reference to it.
+Constructs a \f(CW\*(C`Doctool::Method\*(C'\fR object and returns a reference to it.
 .IP "add_arg( \s-1ARG\s0 )" 4
 .IX Item "add_arg( ARG )"
 Adds \fI\s-1ARG\s0\fR to the list of method arguments.
 \&\fI\s-1ARG\s0\fR must be a \f(CW\*(C`Doctool::Arg\*(C'\fR object.
 .IP "as_text(  )" 4
 .IX Item "as_text( )"
-Returns a string representation of the signal.
-Supposing we have a signal named \*(L"test\*(R" with two arguments, one \f(CW\*(C`int\*(C'\fR named 'a' and one \f(CW\*(C`bool\*(C'\fR
-named 'b', the output would be \f(CW\*(C`test(int a, bool b)\*(C'\fR.
+Returns a string describing the method.
+An example would be \f(CW\*(C`int max(int a, int b)\*(C'\fR.
+The string also factors in default values, so the following could come out:
+\&\f(CW\*(C`bool open(String file, int mode = 0)\*(C'\fR.
+.Sp
+If the \f(CW\*(C`const\*(C'\fR attribute is set, \*(L"const\*(R" is appended to the end of the string output.
+For example, with the \f(CW\*(C`const\*(C'\fR attribute the output could look like this:
+\&\f(CW\*(C`int size() const\*(C'\fR.
+.Sp
+If the \f(CW\*(C`virtual\*(C'\fR attribute is set, \*(L"virtual\*(R" is prepended to the beginning of the string output.
+For example, with the \f(CW\*(C`virtual\*(C'\fR attribute the output could look like this:
+\&\f(CW\*(C`virtual int size()\*(C'\fR.
+.IP "clear_args(  )" 4
+.IX Item "clear_args( )"
+Clears the list of arguments, making array empty.
+.IP "find_arg( \s-1FIELD, PATTERN\s0 )" 4
+.IX Item "find_arg( FIELD, PATTERN )"
+Attempts to find the argument with the given \fI\s-1FIELD\s0\fR that matches \fI\s-1PATTERN\s0\fR.
+.Sp
+If the pattern matches, then the \f(CW\*(C`Doctool::Arg\*(C'\fR object that matches is returned.
+Only the first match is returned.
 .IP "get( \s-1ATTR\s0 )" 4
 .IX Item "get( ATTR )"
 Obtains the value associated with \fI\s-1ATTR\s0\fR.
@@ -158,23 +176,41 @@ Obtains the value associated with \fI\s-1ATTR\s0\fR.
 .IX Item "set( PARAM, VALUE )"
 Sets the value associated with \fI\s-1ATTR\s0\fR.
 \&\fI\s-1ATTR\s0\fR must be one of the attributes defined in \*(L"\s-1ATTRIBUTES\*(R"\s0.
-.IP "set_arg( \s-1INDEX, ARG\s0 )" 4
-.IX Item "set_arg( INDEX, ARG )"
-Replaces the argument at \fI\s-1INDEX\s0\fR with \fI\s-1ARG\s0\fR.
-\&\fI\s-1ARG\s0\fR must be a \f(CW\*(C`Doctool::Arg\*(C'\fR object.
+.IP "remove_arg( \s-1INDEX\s0 )" 4
+.IX Item "remove_arg( INDEX )"
+Removes the argument specified by \fI\s-1INDEX\s0\fR from the list.
+.Sp
+Internally, this method uses \fIsplice()\fR to remove the specified index from an array.
+.IP "set_arg( \s-1INDEX, VALUE\s0 )" 4
+.IX Item "set_arg( INDEX, VALUE )"
+Sets the method argument at \fI\s-1INDEX\s0\fR to \fI\s-1VALUE\s0\fR.
+\&\fI\s-1VALUE\s0\fR must be an object of \f(CW\*(C`Doctool::Arg\*(C'\fR.
 .SH "ATTRIBUTES"
 .IX Header "ATTRIBUTES"
-These are the attributes which are recognized by \fIset()\fR and \fIget()\fR.
 .IP "args" 4
 .IX Item "args"
-A list of \f(CW\*(C`Doctool::Arg\*(C'\fR objects which specify the parameters for the signal.
-Do not set this directly through \fIset()\fR. Instead use \fIadd_arg()\fR or \fIset_arg()\fR.
+A list of the function arguments.
+Each element must be an object of Doctool::Arg.
+Do not attempt to set this attribute directly through \fIset()\fR. Instead, use \fIset_arg()\fR and
+\&\fIadd_arg()\fR to manipulate the argument list.
 .IP "brief" 4
 .IX Item "brief"
-A brief one-line description of the signal.
+A brief one-line description of the method.
+.IP "const" 4
+.IX Item "const"
+A boolean to describe whether the method is const (doesn't modify class variables).
 .IP "description" 4
 .IX Item "description"
-A full description of the signal.
+A full description of the method.
 .IP "name" 4
 .IX Item "name"
-The name of the signal.
+The name of the method.
+.IP "returntype" 4
+.IX Item "returntype"
+The return type of the method.
+.IP "returnvalue" 4
+.IX Item "returnvalue"
+A description of the return value.
+.IP "virtual" 4
+.IX Item "virtual"
+A boolean to describe whether the method is virtual.

@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "Doctool::Util 3"
-.TH Doctool::Util 3 "2021-09-19" "perl v5.26.1" "User Contributed Perl Documentation"
+.TH Doctool::Util 3 "2021-09-21" "perl v5.26.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -184,3 +184,50 @@ Prints the contents of a hash. The parameter can be any valid hash or hash refer
 .IP "str( arg, ... )" 4
 .IX Item "str( arg, ... )"
 Concatenates the arguments into a string. Requires at least one argument.
+.IP "strextract( \s-1PATTERN, STRING\s0 )" 4
+.IX Item "strextract( PATTERN, STRING )"
+.PD 0
+.IP "strextract( \s-1PATTERN, STRING, GROUPLIST\s0 )" 4
+.IX Item "strextract( PATTERN, STRING, GROUPLIST )"
+.PD
+Extracts a substring from \fI\s-1STRING\s0\fR according to \fI\s-1PATTERN\s0\fR, which is expected to be a precompiled
+regular expression. Use the \fIqr()\fR function (documented in \*(L"qr/STRING/\*(R" in perlfunc) to make
+\&\fI\s-1PATTERN\s0\fR.
+.Sp
+In the first form, \fIstrextract()\fR extracts the portion of \fI\s-1STRING\s0\fR that matches \fI\s-1PATTERN\s0\fR, or
+an empty string in the case of failure.
+If it is called in a scalar context, only the first match is returned.
+But in a list context a list of all matching substrings are returned.
+.Sp
+In the second form, \fIstrextract()\fR returns one or matches of subexpressions in \fI\s-1PATTERN\s0\fR.
+In a scalar context only the first match is returned.
+In a list context all matches are returned as an array, and each element corresponds to a group
+number parameter. For example, \f(CW\*(C`strextract(qr/(like).*(donuts)/, $string, 1, 2)\*(C'\fR will return
+a list of strings that correspond to \f(CW$1\fR and \f(CW$2\fR, respectively.
+.Sp
+In all examples, assume the following:
+.Sp
+.Vb 1
+\&    my $string = "I like donuts";
+.Ve
+.Sp
+Example 1 (returning a whole match):
+.Sp
+.Vb 2
+\&    my $match = strextract(qr/donuts/, $string);
+\&    echo $match; # prints "donuts"
+.Ve
+.Sp
+Example 2 (returning a subgroup of a match):
+.Sp
+.Vb 2
+\&    my $match = strextract(qr/do(nuts)/, $string, 1);
+\&    echo $string, "I like", $match; # prints "I like donuts! I like nuts"
+.Ve
+.Sp
+Example 3 (getting multiple subexpression matches):
+.Sp
+.Vb 2
+\&    my @matches = strextract(qr/(like).*(donuts)/, $string, 1, 2);
+\&    echo @matches; # prints "like donuts"
+.Ve

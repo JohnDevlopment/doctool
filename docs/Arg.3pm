@@ -129,22 +129,40 @@
 .\" ========================================================================
 .\"
 .IX Title "Doctool::Arg 3"
-.TH Doctool::Arg 3 "2021-09-19" "perl v5.26.1" "User Contributed Perl Documentation"
+.TH Doctool::Arg 3 "2021-09-22" "perl v5.26.1" "User Contributed Perl Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-Arg \- Data container for generic typed arguments
+Doctool::Arg \- Data container for generic typed arguments
 .SH "METHODS"
 .IX Header "METHODS"
-The following methods are exposed:
-.IP "get( \s-1PARAM\s0 )" 4
-.IX Item "get( PARAM )"
-Retrieves the value of an attribute. For a list of valid attributes, check \*(L"\s-1ATTRIBUTES\*(R"\s0
+.IP "new(  )" 4
+.IX Item "new( )"
+Constructs a \f(CW\*(C`Doctool::Arg\*(C'\fR object and returns a reference to it.
+.IP "as_text(  )" 4
+.IX Item "as_text( )"
+Returns a string which describes the argument.
+Without a default value the string will look something like this: \f(CW\*(C`int example\*(C'\fR.
+But with a default value the string can look like this: \f(CW\*(C`int example = 0\*(C'\fR.
+.IP "get( \s-1ATTR\s0 )" 4
+.IX Item "get( ATTR )"
+Obtains the value associated with \fI\s-1ATTR\s0\fR.
+\&\fI\s-1ATTR\s0\fR must be one of the attributes defined in \*(L"\s-1ATTRIBUTES\*(R"\s0.
 .IP "set( \s-1PARAM, VALUE\s0 )" 4
 .IX Item "set( PARAM, VALUE )"
-Sets an attribute to b<\s-1VALUE\s0>. For a list of valid attributes, check \*(L"\s-1ATTRIBUTES\*(R"\s0
+Sets the value associated with \fI\s-1ATTR\s0\fR.
+\&\fI\s-1ATTR\s0\fR must be one of the attributes defined in \*(L"\s-1ATTRIBUTES\*(R"\s0.
 .SH "ATTRIBUTES"
 .IX Header "ATTRIBUTES"
-Valid attrutes are: default, description, name, type
+These are the attributes which are recognized by \fIset()\fR and \fIget()\fR.
+.IP "default" 4
+.IX Item "default"
+The default value.
+.IP "name" 4
+.IX Item "name"
+The name of the argument.
+.IP "type" 4
+.IX Item "type"
+Argument type.
