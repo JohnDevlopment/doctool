@@ -2,23 +2,31 @@
 
 use strict;
 use warnings;
-use v5.10;
+use 5.016_000;
 
 # Doctool Modules
 use FindBin;
 use lib "$FindBin::Bin/lib";
 
 use Doctool::Getline;
-use Doctool::Util qw(append echo str push_back strextract);
+use Doctool::Util qw(append echo printerr str strextract);
 use String::Util qw(ltrim rtrim hascontent contains);
 use Readonly;
-
 use Digest::MD5 qw(md5_hex);
 
-my %g_sections;
-Readonly::Scalar my $g_sec_tags => qr/desc|note/;
+use subs qw(Doctool ParseEntity);
 
-Readonly my $g_brief_regex => qr/\n?##[ \t]*(.+)/;
+my %g_sections;
+
+Readonly my $g_brief_regex => qr/##[ \t]*(.+)/;
+
+Readonly my %g_parse_subs => (
+    export => \&_ParseProperty,
+    class => \&_ParseClass,
+    signal => \&_ParseSignal,
+    method => \&_ParseMethod,
+    constant => \&_ParseConstant
+);
 
 use constant POD_TYPES => qw(
     float int void bool Variant String Dictionary Array
@@ -42,39 +50,47 @@ use constant COMPLEX_TYPES => qw(
     Object
 );
 
-use constant METHOD_REF_TEMPLATE => <<EOF;
-<div id="method_[METHODNAME]">
-    <p>&bullet; [METHODSIG]</p>
-    [METHODDESC]
-</div>
-EOF
+# Read file given by argument
+if (defined($ARGV[0])) {
+    my $text;
+    local $/;
+    defined($text = <>) or exit 1;
+    print Doctool($text);
+} else {
+    echo "No file name given";
+}
 
-use constant PROPERTY_REF_TEMPLATE => <<EOF;
-<p>&bullet; <b>[PROPSIG]</b></p>
-<table class="bicolor_light">
-    <tr id="[PROPNAME]_default">
-        <td>Default</td>
-        <td>[PROPDEFAULT]</td>
-    </tr>
-    <tr id="[PROPNAME]_setter">
-        <td>Setter</td>
-        <td>[PROPSETTER]</td>
-    </tr>
-    <tr id="[PROPNAME]_getter">
-        <td>Getter</td>
-        <td>[PROPGETTER]</td>
-    </tr>
-</table>
-[PROPDESC]
-EOF
+# Main subroutine
+sub Doctool {
+    my $text = shift or die "Needs a string argument";
 
-use constant SIGNAL_REF_TEMPLATE => <<EOF;
-<div id="signal_[SIGNALNAME]">
-    <p>&bullet; <b>[SIGNALSIG]</b></p>
-    <p>[SIGNALBRIEF]</p>
-    [SIGNALDESC]
-</div>
-EOF
+    # Clear global hash
+    %g_sections = (
+        header => {},
+        methods => [],
+        signals => [],
+        constants => [],
+        properties => []
+    );
+
+    # Standardize line endings:
+    $text =~ s{\r\n}{\n}g; 	# DOS to Unix
+    $text =~ s{\r}{\n}g; 	# Mac to Unix
+
+    # Require that the very first line be a comment with two "#" and text
+    die 'No documentation found for this class' unless ($text =~ /^##\s*.+/);
+
+    while ($text =~ /^(?=##\s*)/gm) {
+        my $index = pos($text);
+        my $doc = _DetectDocType($text, $index);
+
+        ParseEntity($doc->{'text'}, $doc->{'type'});
+    }
+
+    return _BuildHTML();
+}
+
+# HTML methods
 
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
@@ -106,78 +122,29 @@ sub delete_block_class ($$) {return _delete_block_attr($_[0], 'class', $_[1]);}
 # Usage: delete_block string, id
 sub delete_block_id ($$) {return _delete_block_attr($_[0], 'id', $_[1]);}
 
-# Main subroutine
-sub Doctool {
-    my $text = shift or die "Needs a string argument";
-
-    my %parse_subs = (
-        export => \&_ParseProperty,
-        class => \&_ParseClass,
-        signal => \&_ParseSignal,
-        method => \&_ParseMethod
-    );
-
-    # Clear global hash
-    %g_sections = (
-        signals => [],
-        methods => [],
-        properties => [],
-        header => []
-    );
-
-    # Standardize line endings:
-    $text =~ s{\r\n}{\n}g; 	# DOS to Unix
-    $text =~ s{\r}{\n}g; 	# Mac to Unix
-
-    # Require that the very first line be a comment with two "#" and text
-    die 'No documentation found for this class' unless ($text =~ /^##\s*.+/);
-
-    while ($text =~ /^(?=##\s*)/gm) {
-        my $index = pos($text);
-        my $doc = _DetectDocType($text, $index);
-
-        my $key = $doc->{'type'};
-        if (exists $parse_subs{$key}) {
-            &{$parse_subs{$key}}($doc->{'text'});
-        }
-    }
-
-    return _BuildHTML();
-}
-
 sub _BuildHTML {
     my $html = Doctool::Util::readfile("$FindBin::Bin/template.html");
 
-    # Parse header section
     my %header = %{ $g_sections{'header'} };
 
-    {
-        my $extends = sprintf('<p>Inherits from: %s</p>', $header{'extends'});
-        $html =~ s{
-            \n
-            ([ \t]*)
-            (?=.*\[BRIEF\])
-        }{
-            "\n$1" . $extends . "\n$1";
-        }ex;
-    }
+    # Base class
+    my $extends = sprintf('<p>Inherits from: %s</p>', $header{'extends'});
+    $html =~ s{
+        \n
+        ([ \t]*)
+        (?=.*\[BRIEF\])
+    }{
+        "\n$1" . $extends . "\n$1";
+    }ex;
 
     $html =~ s/\[CLASSNAME\]/$header{'class'}/g;
     $html =~ s/\[BRIEF\]/$header{'brief'}/;
 
-    if ( $header{'description'}->$#* >= 1 ) {
-        # Description
+    # Description
+    if (exists $header{'description'} && $header{'description'}->$#* >= 1 ) {
         my $text = '';
         for my $i (0 .. $header{'description'}->$#*) {
             $text = $text . '<p>' . $header{'description'}[$i] . '</p>';
-        }
-
-        if (exists $header{'note'}) {
-            my $buf = '';
-            for my $i (0 .. $header{'note'}->$#*) {
-                $buf = $buf . '<p>' . $header{'note'}[$i] . '</p>';
-            }
-            $text = $text . sprintf(q^<div class="note">%s</div>^, $buf);
         }
         $html =~ s/\[DESC\]/$text/;
     } else {
@@ -185,14 +152,14 @@ sub _BuildHTML {
     }
 
     # Properties section
-    if ( $g_sections{'properties'}->$#* < 0 ) {
+    if ($g_sections{'properties'}->$#* < 0) {
         $html = delete_block_id($html, 'properties');
     } else {
         _HTMLProperty(\$html);
     }
 
     # Methods section
-    if (! exists $g_sections{'methods'}) {
+    if ($g_sections{'methods'}->$#* < 0) {
         $html = delete_block_id($html, 'methods');
     } else {
         _HTMLMethod(\$html);
@@ -203,6 +170,24 @@ sub _BuildHTML {
         $html = delete_block_id($html, 'signals');
     } else {
         _HTMLSignal(\$html);
+    }
+
+    if ($g_sections{'constants'}->$#* < 0) {
+        $html = delete_block_id($html, 'constants');
+    } else {
+        Readonly my $c_const_ref_html => Doctool::Util::readfile("$FindBin::Bin/c/constref.html");
+        my $text = '<ul>';
+        my $constants = $g_sections{'constants'};
+        foreach my $const (@$constants) {
+            my $const_ref = $c_const_ref_html;
+            $const_ref =~ s{\[CONSTNAME\]}{
+                sprintf(q^<b>%s</b> = %s^, $const->{'name'}, $const->{'value'})
+            }eg;
+            $const_ref =~ s/\[CONSTBRIEF\]/$const->{'brief'}/e;
+            append($text, $const_ref);
+        }
+        append($text, '</ul>');
+        $html =~ s/\[CONSTANTS\]/$text/;
     }
 
     _ParseFormatTags(\$html);
@@ -223,11 +208,11 @@ sub _HTMLMethod {
         const => 'This method does not modify any of the instance variables.'
     );
 
-    #Readonly my $c_method_desc_template => Doctool::Util::readfile("$FindBin::Bin/c/methoddesc.html");
+    Readonly my $c_method_desc_template => Doctool::Util::readfile("$FindBin::Bin/c/methoddesc.html");
 
     my $method_section = '';
     foreach my $method (@$r_methods) {
-        my $method_html = METHOD_REF_TEMPLATE;
+        my $method_html = $c_method_desc_template;
 
         $method_html =~ s/\[METHODNAME\]/$method->get('name')/e;
 
@@ -276,10 +261,10 @@ sub _HTMLSignal {
     my $r_signals = $g_sections{'signals'};
     my $signal_section = '';
 
-    #Readonly my $c_signalref_html => Doctool::Util::readfile("$FindBin::Bin/c/signalref.html");
+    Readonly my $c_signalref_html => Doctool::Util::readfile("$FindBin::Bin/c/signalref.html");
 
     foreach my $signal (@$r_signals) {
-        my $signalref_html = SIGNAL_REF_TEMPLATE;
+        my $signalref_html = $c_signalref_html;
 
         $signalref_html =~ s/\[SIGNALSIG\]/$signal->as_text()/e;
         $signalref_html =~ s/\[SIGNALNAME\]/$signal->get('name')/eg;
@@ -316,7 +301,7 @@ sub _HTMLProperty {
     my $properties = $g_sections{'properties'};
     my $propdescs = '';
 
-    #Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
+    Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
 
     my $r_fixquotes = sub {
         no warnings;
@@ -334,7 +319,7 @@ sub _HTMLProperty {
         my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->get('type'), $prop->get('name'), $prop->get('default'));
         append($table, $text . "\n");
 
-        my $propdesc = PROPERTY_REF_TEMPLATE;
+        my $propdesc = $c_propdesc_html;
 
         $propdesc =~ s/\[PROPNAME\]/$prop->get('name')/eg;
         $propdesc =~ s/\[PROPSIG\]/$prop->get('type') . ' ' . $prop->get('name')/e;
@@ -383,6 +368,9 @@ sub _HTMLProperty {
             } else {
                 $propdesc =~ s/\[PROPDESC\]//;
             }
+
+            my $brief = $prop->get('brief');
+            $propdesc =~ s/\[PROPBRIEF\]/$brief/;
         }
 
         append($propdescs, $propdesc);
@@ -456,14 +444,6 @@ sub _ParseFormatTags {
     }egx;
 }
 
-# Returns what type of documentation we're dealing with, also isolates the chunk for us
-# Params
-#    text to sift through
-#    index to start the search from
-# Return value
-#    A reference to a hash with two fields
-#      * $hash{'text'} = a string with the documentation and the entity being documented
-#      * $hash{'type'} = string denoting the type of documentation
 sub _DetectDocType {
     my $text = shift;
     my $index = shift;
@@ -475,7 +455,7 @@ sub _DetectDocType {
     my $line;
     do {
         use String::Util qw(startswith endswith);
-        $line = getline($text, $index);
+        $line = getline($text, \$index);
         if (! $is_func) {
             append($doc_text, $line . "\n");
         } else {
@@ -512,12 +492,12 @@ sub _DetectDocType {
             if ($1 eq 'class_name') {
                 if ( ! contains($doc_text, 'extends') ) {
                     $index = index($text, 'extends');
-                    append($doc_text, getline($text, $index));
+                    append($doc_text, getline($text, \$index));
                 }
             } else {
                 if ( ! contains($doc_text, 'class_name') ) {
                     $index = index($text, 'class_name');
-                    append($doc_text, getline($text, $index));
+                    append($doc_text, getline($text, \$index));
                 }
             }
         }
@@ -527,7 +507,16 @@ sub _DetectDocType {
         when (/^func[ \t]+\w+[ \t]*\((.|\n)*\).*:/m) {
             $doc_type = 'method';
         }
-        default {1;}
+        when (/^const[ \t]+\w+[ \t]*\=[ \t]*.+/m) {
+            unless ($doc_text =~ /^#[ \t]*\@type[ \t]+\w+/m) {
+                printerr("Missing required \@type tag. Unable to discern type of constant.");
+                break;
+            }
+            $doc_type = 'constant';
+        }
+        default {
+            printerr(qq/Unknown documentation block: "$doc_text"/);
+        }
     }
 
     $doc_text =~ s/\n\n/\n/m;
@@ -535,52 +524,37 @@ sub _DetectDocType {
     return { 'text' => $doc_text, 'type' => rtrim($doc_type) };
 }
 
-# Usage: _GetParagraphs $text \$index
-# Returns a reference to an array of paragraph strings
-# Entry condition: $index is set to the index right after the tag name in $text
-sub _GetParagraphs {
+# Parse functions
+
+sub ParseEntity {
     my $text = shift;
-    my $r_index = shift; # reference
+    my $key = shift;
 
-    my $index = $$r_index;
-    my $graff = getline($text, $index);
-
-    my $line;
-    my @pars = ();
-
-    do {
-        $line = getline($text, $index);
-
-        # Look for text on each line
-        if ($line =~ /^#\s*(.+)/) {
-            my $add_to_graff = $1;
-
-            # New paragraph, and the first thing we see is a section tag
-            # FIXME: this might present an issue for the cases where $g_sec_tags is found directly one line below a paragraph (no empty line above it)
-            if ($graff eq '' && $line =~ /^#\s*\@$g_sec_tags/) {
-                $line = '';
-                prevline($text, $index);
-            } else {
-                $graff = $graff . " $add_to_graff";
-            }
-        } else {
-            # Ending the paragraph and appending it to the array
-            if ($graff ne '') {
-                $graff =~ s{\@$g_sec_tags}{}g; # Remove stray section tags
-                $graff = ltrim($graff);
-                $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
-                push_back(@pars, $graff);
-                $graff = '';
-            }
-        }
-    } while (index($line, '#') == 0);
-
-    $$r_index = $index;
-
-    return \@pars;
+    if (exists $g_parse_subs{$key}) {
+        return &{ $g_parse_subs{$key} }($text, $key);
+    }
 }
 
-# _ParseMethod string \%hash_with_subs
+sub _ParseConstant {
+    my $text = shift;
+    my $constant = {
+        brief => '',
+        value => '',
+        name => '',
+        type => ''
+    };
+
+    $constant->{'type'} = $1;
+
+    $constant->{'brief'} = strextract(qr/##[ \t]*(.*)/, $text, 1);
+
+    my @values = strextract(qr/const[ \t]+(\w+)[ \t]*\=[ \t]*(.*)/, $text, 1, 2);
+    $constant->{'name'} = $values[0];
+    $constant->{'value'} = $values[1];
+
+    push($g_sections{'constants'}->@*, $constant);
+}
+
 sub _ParseMethod {
     use Doctool::Method;
     use Doctool::Arg;
@@ -727,7 +701,9 @@ sub _ParseProperty {
     my $prop = Doctool::Property->new();
 
     # Get the brief description first.
-    $prop->set('brief', strextract($g_brief_regex, $text, 1));
+    if ($text =~ /$g_brief_regex/) {
+        $prop->set('brief', $1);
+    }
 
     # Name
     die "REGEX failed" unless ($text =~ /^(?:export.*)?[ \t]*var[ \t]+(\w+)/m);
@@ -739,7 +715,9 @@ sub _ParseProperty {
     $prop->set('type', $1);
 
     # Default
-    $prop->set('default', strextract(qr/\=[ \t]*(\N+)/, $text, 1));
+    if ($text =~ /\=[ \t]*(\N+)/) {
+        $prop->set('default', $1);
+    }
 
     # Getter/setter function
     while ($text =~ /\@([sg]etter)[ \t]+(\w+\(.*\))/g) {
@@ -763,14 +741,50 @@ sub _ParseProperty {
     push($g_sections{'properties'}->@*, $prop);
 }
 
-# Read file given by argument
-if (defined($ARGV[0])) {
-    my $text;
-    local $/;
-    defined($text = <>) or exit 1;
-    print Doctool($text);
-} else {
-    echo "No file name given";
+
+# Usage: _GetParagraphs $text \$index
+# Returns a reference to an array of paragraph strings
+# Entry condition: $index is set to the index right after the tag name in $text
+sub _GetParagraphs {
+    my $text = shift;
+    my $r_index = shift; # reference
+
+    my $index = $$r_index;
+    my $graff = getline($text, \$index);
+
+    my $line;
+    my @pars = ();
+
+    do {
+        $line = getline($text, \$index);
+
+        # Look for text on each line
+        if ($line =~ /^#\s*(.+)/) {
+            my $add_to_graff = $1;
+
+            # New paragraph, and the first thing we see is a section tag
+            # FIXME: this might present an issue for the cases where $g_sec_tags is found directly one line below a paragraph (no empty line above it)
+            if ($graff eq '' && $line =~ /^#\s*\@desc/) {
+                $line = '';
+                prevline($text, $index);
+            } else {
+                $graff = $graff . " $add_to_graff";
+            }
+        } else {
+            # Ending the paragraph and appending it to the array
+            if ($graff ne '') {
+                $graff =~ s{\@desc}{}g; # Remove stray section tags
+                $graff = ltrim($graff);
+                $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
+                push(@pars, $graff);
+                $graff = '';
+            }
+        }
+    } while (index($line, '#') == 0);
+
+    $$r_index = $index;
+
+    return \@pars;
 }
 
 1;
