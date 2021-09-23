@@ -21,6 +21,7 @@ Doctool
         * [Signals](#signals)
             * [Data Tags](#data-tags)
         * [Methods](#methods)
+        * [Constants](#constants)
 
 **Doctool** is a Perl-based program I've written for the sole purpose of generating doc files for my
 custom classes, written in GDScript.
@@ -31,7 +32,7 @@ As of right now, the following goals are met:
 - [X] Create "properties" section with a list of exported properties
 - [X] Create "signals" section with a list of defined signals
 - [X] Create "methods" section with a list of exposed methods
-- [ ] Create "constants" section with a list of defined constants
+- [X] Create "constants" section with a list of defined constants
 - [ ] Create "enums" section with a list of defined enumerations
 
 Installation
@@ -109,6 +110,14 @@ formatting tags.
 For tags that take parameters, said parameters are called *tag-parameters*.
 This is to distinguish between tag-parameters and, for example, parameters to a method being documented.
 
+<a id="definition_documentation-block"></a>
+
+&bullet; documentation block  
+The term I use for a comment block that will be processed by Doctool.
+If a line starts with two pounds, that signals Doctool to process the comments.
+The comments below that line and stretching to the first line of code is what is known as a
+"documentation block".
+
 ## Class Documentation Structure
 
 The following headers describe the sections of the header and the tags they support.
@@ -160,11 +169,9 @@ described therein.
 
 ### Class
 
-In order for Doctool to start processing a file, it needs first to document the class itself.
-This section is the only mandatory section in the documentation.
-
-The way you start a class documentation is to start a comment block at the very top of the file,
-like this:
+To begin processing a file, Doctool needs to see a [documentation block](#definition_documentation-block)
+at the top of the file.
+This documentation block covers the class itself.
 
     ## Container and controller of states
     # @desc  A StateMachine controls the state of an object, referred internally as the persistent state.
@@ -176,7 +183,7 @@ like this:
     extends Node
 
 Notice the inclusion of `class_name` and `extends`.
-Both of those declarations are neccessary in order for Doctool to process this file.
+Both of those declarations are necessary in order for Doctool to process this file.
 
 ### Properties
 
@@ -274,3 +281,17 @@ Unlike the other sections, Doctool completely relies on reading the function sig
 things like the name, parameters, and the return type.
 As you can see, the example function returns `int`.
 But if no return type is specified for this method, Doctool just lists it as `Variant`.
+
+### Constants
+
+A constant looks like this:
+
+    ## Some random constant
+    const SOME_CONSTANT = 0
+
+The brief is not necessary.
+The `const` keyword, the name of the constant, and the value are necessary.
+
+There are no data tags associated with constants.
+
+A description is allowed for this entity, the same as any other.
