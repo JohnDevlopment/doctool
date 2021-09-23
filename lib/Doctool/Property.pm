@@ -1,6 +1,6 @@
 package Doctool::Property;
 
-use v5.10;
+use 5.016_000;
 use strict;
 use warnings;
 use Exporter;

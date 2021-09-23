@@ -1,7 +1,7 @@
 package Doctool::Util;
 
-require Exporter;
-use v5.10;
+use 5.016_000;
+use Exporter;
 use strict;
 use warnings;
 use Carp;
@@ -9,7 +9,7 @@ use Carp;
 # ABSTRACT: Utility subroutines for Doctool
 
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(append echo funcref max min printarray printhash push_back readfile str strextract);
+our @EXPORT_OK = qw(append echo funcref max min printarray printerr printhash readfile str strextract);
 our $VERSION = v0.10;
 
 # Usage: append SCALAR $value
@@ -18,21 +18,6 @@ sub append (\$$) {
     my $value = shift;
 
     $$ref = $$ref . $value;
-
-    return;
-}
-
-# push_back ARRAY, VALUE, ...
-sub push_back (\@$@) {
-    my $ref = shift;
-    my $value = shift;
-
-    my $index = scalar @$ref;
-    $ref->[$index] = $value;
-
-    foreach (@_) {
-        $ref->[++$index] = $_;
-    }
 
     return;
 }
@@ -71,6 +56,13 @@ sub printarray {
     for my $i (0 .. $#ar) {
         echo str("\t$i : ", $ar[$i]);
     }
+}
+
+# Prints to STDERR
+sub printerr {
+    return if scalar(@_) == 0;
+    my $text = join(' ', @_);
+    print(STDERR $text, "\n");
 }
 
 # Print the contents of a hash
@@ -132,12 +124,7 @@ sub str ($@) {
 # Extracts characters based on a pattern
 # Usage: strextract PATTERN STRING [GROUPLIST]
 sub strextract {
-    {
-        my $argc = scalar(@_);
-        if ($argc < 2) {
-            croak _argc_error("strextract", "pattern string [grouplist]");
-        }
-    }
+    croak _argc_error("strextract", "pattern string [grouplist]") if (scalar(@_) < 2);
 
     # Switch to internal subroutine if in list context
     if (wantarray) {
@@ -241,8 +228,8 @@ Accepts an array or a scalar.
 
 =item echo( arg, ... )
 
-Prints out one or more arguments using the C<print> function. The difference is
-that echo automatically appends a newline character
+Prints out one or more arguments using the C<print> function.
+The difference is that echo automatically appends a newline character
 
 =item funcref( funcname )
 
@@ -264,6 +251,10 @@ Returns the lesser of the two parameters.
 =item printarray( arrayref )
 
 Prints the contents of an array. The parameter can be any valid array or array reference.
+
+=item printerr( ARG, ... )
+
+Prints one or more arguments to STDERR.
 
 =item printhash( hash )
 

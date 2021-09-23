@@ -1,18 +1,17 @@
 package Doctool::Getline;
 
-use 5.006;
+use 5.016_000;
 use strict;
 use warnings;
 
-BEGIN {
-    require Exporter;
-    our $VERSION = v0.1;
-    our @ISA = qw(Exporter);
-    our @EXPORT = qw(nextline prevline getline);
-}
+use Exporter;
+our $VERSION = v0.1;
+our @ISA = qw(Exporter);
+our @EXPORT = qw(nextline prevline getline);
+
 
 # Usage: _nextline string index
-sub nextline($\$) {
+sub nextline {
     use Doctool::Util 'min';
     my ($string,$index) = @_;
     my $end = length($string) - 1;
@@ -25,7 +24,7 @@ sub nextline($\$) {
 }
 
 # Usage: _prevline string index
-sub prevline ($\$) {
+sub prevline {
     my ($string,$index) = @_;
     my $i = rindex($string, "\n", $$index);
     if (abs($i - $$index) == 1) {
@@ -35,7 +34,7 @@ sub prevline ($\$) {
 }
 
 # Usage: _getline string index
-sub getline ($\$) {
+sub getline {
     # $start is a reference to a scalar
 
     # String and starting index
