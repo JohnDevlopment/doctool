@@ -3,3 +3,4 @@ markdown_mod
 *.sh
 test.pl
 html/
+logs/

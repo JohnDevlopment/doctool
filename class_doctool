@@ -15,12 +15,13 @@ use Readonly;
 
 use Digest::MD5 qw(md5_hex);
 
-my %g_sec_tag_keys = qw(desc description note note);
 my %g_sections;
 Readonly::Scalar my $g_sec_tags => qr/desc|note/;
 
+Readonly my $g_brief_regex => qr/\n?##[ \t]*(.+)/;
+
 use constant POD_TYPES => qw(
-    float int void Variant String Dictionary Array
+    float int void bool Variant String Dictionary Array
     PoolRealArray PoolIntArray PoolStringArray
     PoolVector2Array PoolVector3Array PoolColorArray
 );
@@ -41,11 +42,39 @@ use constant COMPLEX_TYPES => qw(
     Object
 );
 
-use constant {
-    GET_FIELD_ARG_NAME => 0,
-    GET_FIELD_ARG_TYPE => 1,
-    GET_FIELD_ARG_DEFAULT => 2
-};
+use constant METHOD_REF_TEMPLATE => <<EOF;
+<div id="method_[METHODNAME]">
+    <p>&bullet; [METHODSIG]</p>
+    [METHODDESC]
+</div>
+EOF
+
+use constant PROPERTY_REF_TEMPLATE => <<EOF;
+<p>&bullet; <b>[PROPSIG]</b></p>
+<table class="bicolor_light">
+    <tr id="[PROPNAME]_default">
+        <td>Default</td>
+        <td>[PROPDEFAULT]</td>
+    </tr>
+    <tr id="[PROPNAME]_setter">
+        <td>Setter</td>
+        <td>[PROPSETTER]</td>
+    </tr>
+    <tr id="[PROPNAME]_getter">
+        <td>Getter</td>
+        <td>[PROPGETTER]</td>
+    </tr>
+</table>
+[PROPDESC]
+EOF
+
+use constant SIGNAL_REF_TEMPLATE => <<EOF;
+<div id="signal_[SIGNALNAME]">
+    <p>&bullet; <b>[SIGNALSIG]</b></p>
+    <p>[SIGNALBRIEF]</p>
+    [SIGNALDESC]
+</div>
+EOF
 
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
@@ -156,7 +185,7 @@ sub _BuildHTML {
     }
 
     # Properties section
-    if (! exists $g_sections{'properties'}) {
+    if ( $g_sections{'properties'}->$#* < 0 ) {
         $html = delete_block_id($html, 'properties');
     } else {
         _HTMLProperty(\$html);
@@ -170,7 +199,7 @@ sub _BuildHTML {
     }
 
     # Signals section
-    if (! exists $g_sections{'signals'}) {
+    if ( $g_sections{'signals'}->$#* < 0 ) {
         $html = delete_block_id($html, 'signals');
     } else {
         _HTMLSignal(\$html);
@@ -194,11 +223,11 @@ sub _HTMLMethod {
         const => 'This method does not modify any of the instance variables.'
     );
 
-    Readonly my $c_method_desc_template => Doctool::Util::readfile("$FindBin::Bin/c/methoddesc.html");
+    #Readonly my $c_method_desc_template => Doctool::Util::readfile("$FindBin::Bin/c/methoddesc.html");
 
     my $method_section = '';
     foreach my $method (@$r_methods) {
-        my $method_html = $c_method_desc_template;
+        my $method_html = METHOD_REF_TEMPLATE;
 
         $method_html =~ s/\[METHODNAME\]/$method->get('name')/e;
 
@@ -247,10 +276,10 @@ sub _HTMLSignal {
     my $r_signals = $g_sections{'signals'};
     my $signal_section = '';
 
-    Readonly my $c_signalref_html => Doctool::Util::readfile("$FindBin::Bin/c/signalref.html");
+    #Readonly my $c_signalref_html => Doctool::Util::readfile("$FindBin::Bin/c/signalref.html");
 
     foreach my $signal (@$r_signals) {
-        my $signalref_html = $c_signalref_html;
+        my $signalref_html = SIGNAL_REF_TEMPLATE;
 
         $signalref_html =~ s/\[SIGNALSIG\]/$signal->as_text()/e;
         $signalref_html =~ s/\[SIGNALNAME\]/$signal->get('name')/eg;
@@ -276,6 +305,8 @@ sub _HTMLSignal {
         }
     }
 
+    delete $g_sections{'signals'};
+
     $$r_html =~ s/\[SIGNALS\]/$signal_section/;
 }
 
@@ -285,7 +316,7 @@ sub _HTMLProperty {
     my $properties = $g_sections{'properties'};
     my $propdescs = '';
 
-    Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
+    #Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
 
     my $r_fixquotes = sub {
         no warnings;
@@ -303,7 +334,7 @@ sub _HTMLProperty {
         my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->get('type'), $prop->get('name'), $prop->get('default'));
         append($table, $text . "\n");
 
-        my $propdesc = $c_propdesc_html;
+        my $propdesc = PROPERTY_REF_TEMPLATE;
 
         $propdesc =~ s/\[PROPNAME\]/$prop->get('name')/eg;
         $propdesc =~ s/\[PROPSIG\]/$prop->get('type') . ' ' . $prop->get('name')/e;
@@ -585,6 +616,12 @@ sub _ParseMethod {
 
     $method->set('name', $1); # Method name
 
+    {
+        # Method return type
+        my $rettype = defined($3) ? collapse($3) : 'Variant';
+        $method->set('returntype', $rettype);
+    }
+
     # Argument list
     if (defined $2) {
         my @arglist = split(/\,[ \t\n]*/, $2);
@@ -611,10 +648,6 @@ sub _ParseMethod {
     }
 
     {
-        # Method return type
-        my $rettype = defined($3) ? collapse($3) : 'Variant';
-        $method->set('returntype', $rettype);
-
         # Description
         my $brief = strextract(qr/^##[ \t]*(.+)/, $text, 1);
         if ( hascontent($brief) ) {
@@ -633,8 +666,6 @@ sub _ParseMethod {
     push($g_sections{'methods'}->@*, $method);
 }
 
-# _ParseSignal string
-# Fields: brief (string), desc(string, optional), name(string)
 sub _ParseSignal {
     use Doctool::Signal;
     use Doctool::Arg;
@@ -643,11 +674,10 @@ sub _ParseSignal {
     my $signal = Doctool::Signal->new();
 
     # Name of the signal
-    $text =~ /^signal\s+(\w+)/m;
-    $signal->set('name', $1);
+    $signal->set('name', strextract(qr/signal[ \t]+(\w+)/, $text, 1));
 
     # Signal parameters
-    while ( $text =~ /^#\s*\@arg\s*(\w+)\s+(\w+)\s+(.+)/gm ) {
+    while ( $text =~ /^#[ \t]*\@arg[ \t]*(\w+)[ \t]+(\w+)[ \t]+(.+)/gm ) {
         my $arg = Doctool::Arg->new();
         $arg->set('type', $1);
         $arg->set('name', $2);
@@ -656,9 +686,7 @@ sub _ParseSignal {
     }
 
     # Brief description
-    if ($text =~ /^##\s*(.+)/) {
-        $signal->set('brief', $1);
-    }
+    $signal->set('brief',  strextract($g_brief_regex, $text, 1));
 
     # Full description
     my $i = index($text, '@desc');
@@ -670,44 +698,22 @@ sub _ParseSignal {
     push($g_sections{'signals'}->@*, $signal);
 }
 
-# _ParseClass string
-# Fields: brief (string), class (string), desc (string, optional), extends(string)
 sub _ParseClass {
     my $text = shift;
     my %header;
-    my $line;
     my $index = 0;
 
     # Look for the name of the class
-    $text =~ /class_name\s+(\w+)/;
-    $header{'class'} = $1;
+    $header{'class'} = strextract(qr/class_name\s+(\w+)/, $text, 1);
 
     # Get the brief description first.
-    $line = getline($text, $index);
-    $header{'brief'} = ($text =~ /^##\s*(.+)/) ? $1 : 'No description available';
+    $header{'brief'} = strextract($g_brief_regex, $text, 1);
 
-    # Look for tags in the comments
-    do {
-        $line = getline($text, $index);
-
-        # If a section-tag is found:
-        if ($line =~ /^#\s*\@($g_sec_tags)/) {
-            my $tag = $1; # e.g., 'desc'
-            my $key = $g_sec_tag_keys{$tag}; # e.g., 'description'
-
-            # Move index in front of tag
-            # To explain the math here:
-            # $index is currently the index to the NEXT line, so we subtract the length
-            # of THIS line, and subtract one, to bring it back to the start of the current line.
-            # Then we add the index of the tag (e.g., "@desc") to it, then add its length,
-            # to bring the index in front of the tag.
-            # The result should be that $index is at the index after  the tag.
-            my $i = index($line, '@' . $1);
-            $index = ($index - length($line) - 1) + $i + length('@' . $1);
-
-            $header{$key} = _GetParagraphs($text, \$index);
-        }
-    } while (index($line, '#') == 0);
+    $index = index($text, '@desc');
+    if ($index > 0) {
+        $index += length('@desc');
+        $header{'description'} = _GetParagraphs($text, \$index);
+    }
 
     die q/Syntax error: no "extends" found in input/ unless ($text =~ /^extends[ \t]+(\w+)/m);
     $header{'extends'} = $1;
@@ -715,32 +721,25 @@ sub _ParseClass {
     $g_sections{'header'} = \%header;
 }
 
-# _ParseProperty string
-# Note: $g_section{'properties'} is a list of Doctool::Property objects.
-#       The attributes are: brief, name, default, type, description (ARRAY)
 sub _ParseProperty {
     use Doctool::Property;
     my $text = shift;
     my $prop = Doctool::Property->new();
-    my $index = 0;
-    my $line = '';
 
     # Get the brief description first.
-    $line = getline($text, $index);
-    $prop->set( 'brief', ($text =~ /^##\s*(.+)/) ? $1 : 'No description available' );
+    $prop->set('brief', strextract($g_brief_regex, $text, 1));
 
     # Name
-    die "REGEX failed" unless ($text =~ /^(?:export.*)?\s*var\s+(\w+)/m);
+    die "REGEX failed" unless ($text =~ /^(?:export.*)?[ \t]*var[ \t]+(\w+)/m);
     $prop->set('name', $1);
 
     # Property type
-    die str("Property ", $prop->get('name'), " needs a type") unless ($text =~ /^#\s*\@type\s+(\w+)/m);
+    # TODO: thrown an exception if the type is not one of Godot's recognized types
+    die str("Property ", $prop->get('name'), " needs a type") unless ($text =~ /^#[ \t]*\@type[ \t]+(\w+)/m);
     $prop->set('type', $1);
 
     # Default
-    if ($text =~ /\=\s*(\N+)/) {
-        $prop->set('default', $1);
-    }
+    $prop->set('default', strextract(qr/\=[ \t]*(\N+)/, $text, 1));
 
     # Getter/setter function
     while ($text =~ /\@([sg]etter)[ \t]+(\w+\(.*\))/g) {
@@ -752,27 +751,14 @@ sub _ParseProperty {
         }
     }
 
-    do {
-        $line = getline($text, $index);
-
-        # Found a section tag
-        if ($line =~ /^#\s*\@($g_sec_tags)/) {
-            my $tag = $1; # e.g., 'desc'
-            my $key = $g_sec_tag_keys{$tag}; # e.g., 'description'
-
-            # Move index in front of tag
-            # To explain the math here:
-            # $index is currently the index to the NEXT line, so we subtract the length
-            # of THIS line, and subtract one, to bring it back to the start of the current line.
-            # Then we add the index of the tag (e.g., "@desc") to it, then add its length,
-            # to bring the index in front of the tag.
-            # The result should be that $index is at the index after  the tag.
-            my $i = index($line, '@' . $1);
-            $index = ($index - length($line) - 1) + $i + length('@' . $1);
-
+    {
+        # Full description
+        my $index = index($text, '@desc');
+        if ($index > 0) {
+            $index += length('@desc');
             $prop->set('description', _GetParagraphs($text, \$index));
         }
-    } while (index($line, '#') == 0);
+    }
 
     push($g_sections{'properties'}->@*, $prop);
 }
@@ -783,6 +769,8 @@ if (defined($ARGV[0])) {
     local $/;
     defined($text = <>) or exit 1;
     print Doctool($text);
+} else {
+    echo "No file name given";
 }
 
 1;
