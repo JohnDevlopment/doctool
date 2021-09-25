@@ -3,7 +3,6 @@ package Doctool::Property;
 use 5.016_000;
 use strict;
 use warnings;
-use Exporter;
 use Carp;
 
 our @ATTRIBUTES = qw(brief default description getter name setter type);

@@ -144,11 +144,12 @@ sub strextract {
                 return $$r_group;
             }
         }
-    } elsif ($success) {
-        return $&;
-    }
+    } #elsif ($success) {
+    #    return $&;
+    #}
 
-    return;
+    return $& if ($success);
+    return '';
 }
 
 # Returns the type of a variable (must be an lvalue)
@@ -191,7 +192,7 @@ sub _strextract_list {
         }
     }
 
-    return ($#results >= 1) ? @results : undef;
+    return @results;
 }
 
 sub _invalid_call {
@@ -284,6 +285,9 @@ In a scalar context only the first match is returned.
 In a list context all matches are returned as an array, and each element corresponds to a group
 number parameter. For example, C<strextract(qr/(like).*(donuts)/, $string, 1, 2)> will return
 a list of strings that correspond to $1 and $2, respectively.
+
+If in any case the pattern fails to match, an empty string is returned in scalar context, and an
+empty array is returned in list context.
 
 In all examples, assume the following:
 
