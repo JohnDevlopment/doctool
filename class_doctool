@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use 5.016_000;
+use 5.022_000;
 
 # Doctool Modules
 use FindBin;
@@ -10,7 +10,10 @@ use lib "$FindBin::Bin/lib";
 
 use Doctool::Getline;
 use Doctool::Util qw(append echo printerr str strextract);
-use String::Util qw(ltrim rtrim hascontent contains);
+
+use String::Util qw(startswith endswith ltrim rtrim hascontent contains);
+#use autouse 'String::Util' => qw(startswith endswith ltrim rtrim hascontent contains);
+
 use Readonly;
 use Digest::MD5 qw(md5_hex);
 
@@ -25,8 +28,11 @@ Readonly my %g_parse_subs => (
     class => \&_ParseClass,
     signal => \&_ParseSignal,
     method => \&_ParseMethod,
-    constant => \&_ParseConstant
+    constant => \&_ParseConstant,
+    enum => \&_ParseEnum
 );
+
+my %g_html_templates = ();
 
 use constant POD_TYPES => qw(
     float int void bool Variant String Dictionary Array
@@ -70,7 +76,8 @@ sub Doctool {
         methods => [],
         signals => [],
         constants => [],
-        properties => []
+        properties => [],
+        enums => []
     );
 
     # Standardize line endings:
@@ -116,6 +123,20 @@ sub _delete_block_attr ($$$) {
     return $text;
 }
 
+sub _LoadTemplateOnce ($$) {
+    use Doctool::Util 'readfile';
+
+    my $field = shift;
+    my $file = str("$FindBin::Bin/", shift);
+
+    if (! exists $g_html_templates{$field}) {
+        #echo "_LoadTemplateOnce: load $file";
+        $g_html_templates{$field} = readfile($file);
+    }
+
+    return $g_html_templates{$field};
+}
+
 # Usage: delete_block string, class
 sub delete_block_class ($$) {return _delete_block_attr($_[0], 'class', $_[1]);}
 
@@ -123,7 +144,9 @@ sub delete_block_class ($$) {return _delete_block_attr($_[0], 'class', $_[1]);}
 sub delete_block_id ($$) {return _delete_block_attr($_[0], 'id', $_[1]);}
 
 sub _BuildHTML {
-    my $html = Doctool::Util::readfile("$FindBin::Bin/template.html");
+    _LoadTemplateOnce 'template', 'template.html';
+
+    my $html = $g_html_templates{'template'};
 
     my %header = %{ $g_sections{'header'} };
 
@@ -172,14 +195,21 @@ sub _BuildHTML {
         _HTMLSignal(\$html);
     }
 
+    # Enums section
+    if ( $g_sections{'enums'}->$#* < 0 ) {
+        $html = delete_block_id($html, 'enumerations');
+    } else {
+        _HTMLEnum(\$html);
+    }
+
+    # Constants
     if ($g_sections{'constants'}->$#* < 0) {
         $html = delete_block_id($html, 'constants');
     } else {
-        Readonly my $c_const_ref_html => Doctool::Util::readfile("$FindBin::Bin/c/constref.html");
         my $text = '<ul>';
         my $constants = $g_sections{'constants'};
         foreach my $const (@$constants) {
-            my $const_ref = $c_const_ref_html;
+            my $const_ref = _LoadTemplateOnce('const', 'c/constref.html');
             $const_ref =~ s{\[CONSTNAME\]}{
                 sprintf(q^<b>%s</b> = %s^, $const->{'name'}, $const->{'value'})
             }eg;
@@ -199,6 +229,33 @@ sub _BuildHTML {
     return $html;
 }
 
+sub _HTMLEnum {
+    my $r_html = shift;
+    my $r_enums = $g_sections{'enums'};
+
+    my $enum_section = '';
+
+    foreach my $enum (@$r_enums) {
+        my $enumref_html = _LoadTemplateOnce('enum', 'c/enumref.html');
+        $enumref_html =~ s/\[ENUMNAME\]/$enum->get('name')/e;
+
+        # \n<!--[ \t]*(<li>.+</li>)
+        my $enumconst_html = strextract(qr^\n<!--[ \t]*(<li>.+</li>)^, $enumref_html, 1);
+
+        my $enum_constants = '';
+        foreach ( @{ $enum->get('members') } ) {
+            #echo sprintf('%s = %s -- %s', $_->{'name'}, $_->{'value'}, $_->{'brief'});
+            append $enum_constants, sprintf($enumconst_html, $_->{'name'}, $_->{'value'}, $_->{'brief'});
+        }
+
+        $enumref_html =~ s/\[ENUMCONSTLIST\]/$enum_constants/;
+
+        append $enum_section, $enumref_html,
+    }
+
+    $$r_html =~ s/\[ENUMERATIONS\]/$enum_section/;
+}
+
 sub _HTMLMethod {
     my $r_html = shift;
     my $r_methods = $g_sections{'methods'};
@@ -208,11 +265,9 @@ sub _HTMLMethod {
         const => 'This method does not modify any of the instance variables.'
     );
 
-    Readonly my $c_method_desc_template => Doctool::Util::readfile("$FindBin::Bin/c/methoddesc.html");
-
     my $method_section = '';
     foreach my $method (@$r_methods) {
-        my $method_html = $c_method_desc_template;
+        my $method_html = _LoadTemplateOnce('method', 'c/methoddesc.html');
 
         $method_html =~ s/\[METHODNAME\]/$method->get('name')/e;
 
@@ -261,10 +316,8 @@ sub _HTMLSignal {
     my $r_signals = $g_sections{'signals'};
     my $signal_section = '';
 
-    Readonly my $c_signalref_html => Doctool::Util::readfile("$FindBin::Bin/c/signalref.html");
-
     foreach my $signal (@$r_signals) {
-        my $signalref_html = $c_signalref_html;
+        my $signalref_html = _LoadTemplateOnce('signal', 'c/signalref.html');
 
         $signalref_html =~ s/\[SIGNALSIG\]/$signal->as_text()/e;
         $signalref_html =~ s/\[SIGNALNAME\]/$signal->get('name')/eg;
@@ -301,8 +354,6 @@ sub _HTMLProperty {
     my $properties = $g_sections{'properties'};
     my $propdescs = '';
 
-    Readonly my $c_propdesc_html => Doctool::Util::readfile("$FindBin::Bin/c/propdesc.html");
-
     my $r_fixquotes = sub {
         no warnings;
         my $text = shift;
@@ -319,7 +370,7 @@ sub _HTMLProperty {
         my $text = sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', $prop->get('type'), $prop->get('name'), $prop->get('default'));
         append($table, $text . "\n");
 
-        my $propdesc = $c_propdesc_html;
+        my $propdesc = _LoadTemplateOnce('property', 'c/propdesc.html');
 
         $propdesc =~ s/\[PROPNAME\]/$prop->get('name')/eg;
         $propdesc =~ s/\[PROPSIG\]/$prop->get('type') . ' ' . $prop->get('name')/e;
@@ -454,7 +505,6 @@ sub _DetectDocType {
     # Continue until you reach a non-comment line
     my $line;
     do {
-        use String::Util qw(startswith endswith);
         $line = getline($text, \$index);
         if (! $is_func) {
             append($doc_text, $line . "\n");
@@ -514,6 +564,9 @@ sub _DetectDocType {
             }
             $doc_type = 'constant';
         }
+        when (/^enum([ \t])+\w+\1*\{(.|\n)*?\}/m) {
+            $doc_type = 'enum';
+        }
         default {
             printerr(qq/Unknown documentation block: "$doc_text"/);
         }
@@ -533,6 +586,26 @@ sub ParseEntity {
     if (exists $g_parse_subs{$key}) {
         return &{ $g_parse_subs{$key} }($text, $key);
     }
+}
+
+sub _ParseEnum {
+    use Doctool::Enum;
+    my $text = shift;
+    my $enum = Doctool::Enum->new();
+
+    #$enum->set('name', scalar strextract(qr/\nenum([ \t])+(\w+)\1*/, 2) );
+
+    $enum->set('name', $2) if ( $text =~ /^enum([ \t])+(\w+)\1*/m );
+
+    $enum->set('brief', $1) if ( $text =~ /^##[ \t]*(.+)/ );
+
+    # @constant {$1:name} {$2:value} {$3:brief}
+    while ( $text =~ /#[ \t]*\@constant[ \t]+(\w+)[ \t]+([^\s]+)[ \t]+(\N+)/mg ) {
+        #echo "$enum->add_constant($1, $2, $3)";
+        $enum->add_constant($1, $2, $3);
+    }
+
+    push($g_sections{'enums'}->@*, $enum);
 }
 
 sub _ParseConstant {
