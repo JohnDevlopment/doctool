@@ -20,6 +20,7 @@ use Digest::MD5 qw(md5_hex);
 use subs qw(Doctool ParseEntity);
 
 my %g_sections;
+my $g_file;
 
 Readonly my $g_brief_regex => qr/##[ \t]*(.+)/;
 
@@ -57,13 +58,27 @@ use constant COMPLEX_TYPES => qw(
 );
 
 # Read file given by argument
-if (defined($ARGV[0])) {
+if (scalar(@ARGV) == 1) {
+    $g_file = $ARGV[0];
     my $text;
     local $/;
     defined($text = <>) or exit 1;
-    print Doctool($text);
+
+    my $e;
+    {
+        local $@;
+        $text = eval {Doctool($text)};
+        if (! $text) {
+            $e = "Failed to document $g_file : " . rtrim($@);
+        }
+    }
+    if (defined $e) {
+        printerr $e;
+        exit 1;
+    }
+    print $text;
 } else {
-    echo "No file name given";
+    printerr "No file given";
 }
 
 # Main subroutine
@@ -85,19 +100,16 @@ sub Doctool {
     $text =~ s{\r}{\n}g; 	# Mac to Unix
 
     # Require that the very first line be a comment with two "#" and text
-    die 'No documentation found for this class' unless ($text =~ /^##\s*.+/);
+    die "No documentation found for this class" unless ($text =~ /^##\s*.+/);
 
     while ($text =~ /^(?=##\s*)/gm) {
         my $index = pos($text);
         my $doc = _DetectDocType($text, $index);
-
         ParseEntity($doc->{'text'}, $doc->{'type'});
     }
 
     return _BuildHTML();
 }
-
-# HTML methods
 
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
@@ -261,7 +273,7 @@ sub _HTMLMethod {
     my $r_methods = $g_sections{'methods'};
 
     Readonly my %c_abbr_titles => (
-        virtual => 'This method should typically be overridden by the use to have any effect.',
+        virtual => 'This method should typically be overridden by the user to have any effect.',
         const => 'This method does not modify any of the instance variables.'
     );
 
@@ -487,7 +499,7 @@ sub _ParseFormatTags {
         (?:
             \@($pattern)
             \{
-            (\N+)
+            (\N+?)
             \}
         )
     }{
@@ -557,7 +569,7 @@ sub _DetectDocType {
         when (/^func[ \t]+\w+[ \t]*\((.|\n)*\).*:/m) {
             $doc_type = 'method';
         }
-        when (/^const[ \t]+\w+[ \t]*\=[ \t]*.+/m) {
+        when (/^const[ \t]+\w+[ \t]*:[ \t]*\=[ \t]*.+/m) {
             unless ($doc_text =~ /^#[ \t]*\@type[ \t]+\w+/m) {
                 printerr("Missing required \@type tag. Unable to discern type of constant.");
                 break;
@@ -617,11 +629,11 @@ sub _ParseConstant {
         type => ''
     };
 
-    $constant->{'type'} = $1;
+    $constant->{'type'} = strextract(qr/\@type[ \t]+(\w+)/, $text, 1);
 
     $constant->{'brief'} = strextract(qr/##[ \t]*(.*)/, $text, 1);
 
-    my @values = strextract(qr/const[ \t]+(\w+)[ \t]*\=[ \t]*(.*)/, $text, 1, 2);
+    my @values = strextract(qr/const[ \t]+(\w+)[ \t]*:[ \t]*\=[ \t]*(.*)/, $text, 1, 2);
     $constant->{'name'} = $values[0];
     $constant->{'value'} = $values[1];
 
@@ -721,14 +733,19 @@ sub _ParseSignal {
     my $signal = Doctool::Signal->new();
 
     # Name of the signal
-    $signal->set('name', strextract(qr/signal[ \t]+(\w+)/, $text, 1));
+    unless ($text =~ /^signal[ \t]+(\w+)/m) {
+        printerr "Missing name for signal: \"$&\"";
+        return;
+    }
+
+    $signal->set('name', $1);
 
     # Signal parameters
     while ( $text =~ /^#[ \t]*\@arg[ \t]*(\w+)[ \t]+(\w+)[ \t]+(.+)/gm ) {
         my $arg = Doctool::Arg->new();
         $arg->set('type', $1);
         $arg->set('name', $2);
-        $arg->set('description', $3);
+        $arg->set('brief', $3);
         $signal->add_arg($arg);
     }
 
@@ -783,13 +800,18 @@ sub _ParseProperty {
     $prop->set('name', $1);
 
     # Property type
-    # TODO: thrown an exception if the type is not one of Godot's recognized types
+    # TODO: throw an exception if the type is not one of Godot's recognized types
     die str("Property ", $prop->get('name'), " needs a type") unless ($text =~ /^#[ \t]*\@type[ \t]+(\w+)/m);
     $prop->set('type', $1);
 
     # Default
     if ($text =~ /\=[ \t]*(\N+)/) {
-        $prop->set('default', $1);
+        my $string = $1;
+        my $temp = index($string, 'setget');
+        if ($temp > 0) {
+            substr($string, $temp) = '';
+        }
+        $prop->set('default', $string);
     }
 
     # Getter/setter function

@@ -130,14 +130,14 @@
             }
         </style>
         <script type="text/javascript">
-            function changeNote() {
+            /*function changeNote() {
                 const es = document.getElementsByClassName('note');
                 let flen = es.length;
                 for (let i = 0; i < flen; ++i) {
                     let buf = es[i].innerHTML;
                     es[i].innerHTML = "<b>Note</b>" + buf;
                 }
-            }
+            }*/
             function addRefsToFunctionClass() {
                 const es = document.getElementsByClassName('functionref');
                 let flen = es.length;
@@ -148,7 +148,7 @@
             }
         </script>
     </head>
-    <body onload="changeNote(); addRefsToFunctionClass()">
+    <body onload="addRefsToFunctionClass()">
         <div id="main">
             <div id="flex-container">
                 <nav id="toc">
