@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Carp;
 
-our @ATTRIBUTES = qw(default name type);
+our @ATTRIBUTES = qw(brief default name type);
 
 =head1 NAME
 
@@ -29,7 +29,8 @@ sub new {
         type => 'Variant',
         name => '',
         default => '',
-        description => 'A variant type'
+        description => 'A variant type',
+        brief => ''
     };
     bless $self, $class;
 
@@ -99,6 +100,10 @@ sub set {
 These are the attributes which are recognized by set() and get().
 
 =over 4
+
+=item brief
+
+A brief one-line description of the argument.
 
 =item default
 
