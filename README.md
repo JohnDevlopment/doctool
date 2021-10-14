@@ -13,6 +13,11 @@ As of right now, the following goals are met:
 - [ ] Create "enums" section with a list of defined enumerations
 - [ ] Automatically build a table of contents for the HTML output
 
+## Version History
+
+I am currently developing Doctool and it should not be considered stable yet. The current version of Doctool can be found [here](VERSION).
+A list of changes made to each version can be found [here](CHANGES).
+
 ## Installation
 
 Simply extract the contents of the archive into its own directory. Or clone this repository for the same effect.
