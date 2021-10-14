@@ -1,27 +1,4 @@
-Doctool
-=======
-
-* [Doctool](#doctool)
-* [Installation](#installation)
-    * [Dependencies](#dependencies)
-        * [Installing Dependencies](#installing-dependencies)
-            * [Method 1](#method-1)
-            * [Method 2](#method-2)
-* [Usage](#usage)
-    * [Class Documentation Syntax](#class-documentation-syntax)
-        * [Terminology](#terminology)
-    * [Class Documentation Structure](#class-documentation-structure)
-        * [Universal Tags](#universal-tags)
-            * [Section Tags](#section-tags)
-            * [Formatting Tags](#formatting-tags)
-            * [Data Tags](#data-tags)
-        * [Class](#class)
-        * [Properties](#properties)
-            * [Data Tags](#data-tags)
-        * [Signals](#signals)
-            * [Data Tags](#data-tags)
-        * [Methods](#methods)
-        * [Constants](#constants)
+# Doctool
 
 **Doctool** is a Perl-based program I've written for the sole purpose of generating doc files for my
 custom classes, written in GDScript.
@@ -34,20 +11,18 @@ As of right now, the following goals are met:
 - [X] Create "methods" section with a list of exposed methods
 - [X] Create "constants" section with a list of defined constants
 - [ ] Create "enums" section with a list of defined enumerations
+- [ ] Automatically build a table of contents for the HTML output
 
-Installation
-============
+## Installation
 
-Simply extract the files in this repository into their own directory.
+Simply extract the contents of the archive into its own directory. Or clone this repository for the same effect.
 
-## Dependencies
+### Dependencies
 
 * Perl version 5.10 or later
 * Perl modules
     * String::Util
     * Readonly
-
-### Installing Dependencies
 
 You can install Perl modules from the commandline, and there are two ways to do so.
 
@@ -75,58 +50,37 @@ This is a slightly quicker (less typing) way of installing a module.
 If you do not have cpanm installed, you can do method 1 above or install a package named "cpanminus"
 using your package manager.
 
-Usage
-=====
+## Usage
 
-Doctool reads GDScript files and generates HTML files based off of a template.
-To use it, the commandline is `class_doctool file`, where "file" is a path to the GDScript file
-you want to process.
+	class_doctool FILE
+
+Doctool reads from a file written in GDScript and prints HTML to standard output. The HTML is produced using
+`template.html` according to the rules outlined in this document (to be written).
+
+<!-- TODO: create file that describes how template.html is used. -->
 
 ## Class Documentation Syntax
 
-In Doctool, all documentations start with a comment line beginning with two pounds (#), an optional
-space, and an optional brief description of the documented entity:
+To write a documentation for the class, a property, etc., you write what is called a documentation block preceding the
+actual declaration of the documented entity.
 
-    ## Container and controller of states
-    # @desc  A StateMachine controls the state of an object, referred internally as the persistent state.
-    #        Any child that is a @class State will be added to an internal array of states.
-    #        The first child that is a @class State will be the first index in said array, and so on.
-    #
-    #        To change which state is currently active, call @function change_state.
-    class_name StateMachine
-    extends Node
+A comment starting with two pounds is used for a brief one-line description of the code. It's also what Doctool looks for to start
+a documentation block.
 
-### Terminology
+	## Brief description
+	# @desc Full description.
+	export(bool) var flag = false
 
-For the purposes of this README, the terms listed below have specific meanings:
+### Tags
 
-&bullet; tag  
-A tag is identified by an at-sign followed a word.
-An example of one would be `@desc`.
-There are three types of tags, differentiated by how they're parsed: section tags, data tags, and
-formatting tags.
+Any word that starts with '@' is a tag. Documentation blocks have their own unique set of tags.
 
-&bullet; tag-parameter  
-For tags that take parameters, said parameters are called *tag-parameters*.
-This is to distinguish between tag-parameters and, for example, parameters to a method being documented.
-
-<a id="definition_documentation-block"></a>
-
-&bullet; documentation block  
-The term I use for a comment block that will be processed by Doctool.
-If a line starts with two pounds, that signals Doctool to process the comments.
-The comments below that line and stretching to the first line of code is what is known as a
-"documentation block".
-
-## Class Documentation Structure
-
-The following headers describe the sections of the header and the tags they support.
-It should be noted that there tags which are supported across all sections.
-Such tags are described under [Universal Tags](#universal-tags).
-
-### Universal Tags
+This section defines the three different types of tags and what they do. In addition, tags which are universal (can be used anywhere)
+are listed under their respective headers.
 
 #### Section Tags
+
+A section tag starts a section in the documentation block. A section can have more than one paragraph.
 
 &bullet; `desc`  
 Starts a section of the documented entity for the description.
@@ -135,14 +89,12 @@ This may change in future versions.
 
 #### Formatting Tags
 
-Formatting tags have the following syntax, of which there are two variations:
+Defined as inline tags which affect the formatting of text. Their syntax is as follows:
 
     @tag text
     @tag{multiword text}
 
-In the first form, a tag modifies a single word; non-word characters such as '@' or puncutation
-characters do not match.
-But in the second form, which uses curly braces, more than one word can be enclosed at once.
+The first form modifies the formatting of a single word, and the second form affects whatever is enclosed between the braces.
 
 &bullet; `a`  
 Used to denote an argument, either to a function or a signal.
@@ -164,14 +116,54 @@ generic `<code>` tags.
 
 #### Data Tags
 
-Data tags are specific to different sections of the documentation structure, so they will be
-described therein.
+There are no universl data tags; each type of docmentation contains its own unique set of data tags. Check the sections
+describing each type of doc to see their data tags.
+
+## Documentation Basics
+
+### Terminology
+
+These terms are used when referring to parts of a GDScript file.
+
+<a id="definition_tag"></a>
+
+&bullet; tag  
+A tag is identified by an at-sign followed a word.
+An example of one would be `@desc`.
+There are three types of tags, differentiated by how they're parsed: section tags, data tags, and formatting tags.
+
+<a id="definition_tag-parameter"></a>
+
+&bullet; tag-parameter  
+Refers to a parameter taken in by a tag.
+
+<a id="definition_documentation-block"></a>
+
+&bullet; documentation block  
+Used to describe a block of comments followed and delimited by the first line of code, typically the entity being documented.
+A documentation block is recognized by a pair of pound signs at the beginning of a line and consective lines of single-pound comments.
+
+## Class Documentation Structure
 
 ### Class
 
 To begin processing a file, Doctool needs to see a [documentation block](#definition_documentation-block)
 at the top of the file.
 This documentation block covers the class itself.
+
+    ## Brief description of the class.
+	# @desc  A multi-paragraph description of the class.
+	#
+	#        A second paragraph.
+	class_name ClassName
+	extends BaseClass
+
+Notice the inclusion of `class_name` and `extends`.
+Both of those declarations are necessary in order for Doctool to process this file.
+However, instead of `class_name` you can use a `@name` tag in the body of the documentation block to
+tell Doctool what to use as the name of the class. Without either of these, Doctool will emit an error and abort.
+
+Example1:
 
     ## Container and controller of states
     # @desc  A StateMachine controls the state of an object, referred internally as the persistent state.
@@ -182,8 +174,29 @@ This documentation block covers the class itself.
     class_name StateMachine
     extends Node
 
-Notice the inclusion of `class_name` and `extends`.
-Both of those declarations are necessary in order for Doctool to process this file.
+Example 2:
+
+	## Container and controller of states
+	# @name StateMachine
+	# @desc  A StateMachine controls the state of an object, referred internally as the persistent state.
+    #        Any child that is a @class State will be added to an internal array of states.
+    #        The first child that is a @class State will be the first index in said array, and so on.
+    #
+    #        To change which state is currently active, call @function change_state.
+	extends Node
+
+#### Data Tags
+
+Unless otherwise noted, these tags are optional.
+
+&bullet; `name`  
+Syntax: `@name NAME`  
+If this tag is present, *NAME* is used for the name of the documented class.
+**Note:** this tag is mandatory if no `class_name` expression is found.
+
+&bullet; `singleton`  
+Syntax: `@singleton`  
+This tag tells Doctool that the class being documented is a singleton (also known as an autoload in Godot).
 
 ### Properties
 
@@ -240,6 +253,20 @@ Indicates that *FUNCTION* is this property's registered setter function.
 Syntax: `@type TYPE`  
 Describes the type of the property---this tag is *required* for Doctool to accept this property.
 
+### Constants
+
+A constant looks like this:
+
+    ## Some random constant
+    const SOME_CONSTANT = 0
+
+The brief is not necessary.
+The `const` keyword, the name of the constant, and the value are necessary.
+
+There are no data tags associated with constants.
+
+A description is allowed for this entity, the same as any other.
+
 ### Signals
 
 Here is a signal that I defined for one of my classes.
@@ -251,7 +278,7 @@ Here is a signal that I defined for one of my classes.
     signal state_change_request(new_state)
 
 Like with properties, Doctool gets the name of the signal by reading the signal definition.
-In this example the name of the signal is "state_change_request".
+In this example the name of the signal is `state_change_request`.
 
 #### Data Tags
 
@@ -281,17 +308,3 @@ Unlike the other sections, Doctool completely relies on reading the function sig
 things like the name, parameters, and the return type.
 As you can see, the example function returns `int`.
 But if no return type is specified for this method, Doctool just lists it as `Variant`.
-
-### Constants
-
-A constant looks like this:
-
-    ## Some random constant
-    const SOME_CONSTANT = 0
-
-The brief is not necessary.
-The `const` keyword, the name of the constant, and the value are necessary.
-
-There are no data tags associated with constants.
-
-A description is allowed for this entity, the same as any other.

@@ -156,23 +156,22 @@ sub delete_block_class ($$) {return _delete_block_attr($_[0], 'class', $_[1]);}
 sub delete_block_id ($$) {return _delete_block_attr($_[0], 'id', $_[1]);}
 
 sub _BuildHTML {
-    _LoadTemplateOnce 'template', 'template.html';
-
-    my $html = $g_html_templates{'template'};
+    my $html = _LoadTemplateOnce('template', 'template.html');
 
     my %header = %{ $g_sections{'header'} };
 
-    # Base class
-    my $extends = sprintf('<p>Inherits from: %s</p>', $header{'extends'});
-    $html =~ s{
-        \n
-        ([ \t]*)
-        (?=.*\[BRIEF\])
-    }{
-        "\n$1" . $extends . "\n$1";
-    }ex;
+    {
+        my $temp_extends = sprintf('<p>Inherits from <code class="class">%s</code> </p>', $header{'extends'});
+        $html =~ s/\[EXTENDS\]/$temp_extends/;
 
-    $html =~ s/\[CLASSNAME\]/$header{'class'}/g;
+        my $temp_singleton_text = '';
+        if ( $header{'is_singleton'} ) {
+            $temp_singleton_text = "<h2>Singleton Reference</h2>";
+        }
+        $html =~ s/\[ISSINGLETON\]/$temp_singleton_text/;
+        $html =~ s/\[CLASSNAME\]/$header{'class'}/g;
+    }
+
     $html =~ s/\[BRIEF\]/$header{'brief'}/;
 
     # Description
@@ -764,15 +763,25 @@ sub _ParseSignal {
 
 sub _ParseClass {
     my $text = shift;
-    my %header;
+    my %header = (is_singleton => '');
     my $index = 0;
 
     # Look for the name of the class
-    $header{'class'} = strextract(qr/class_name\s+(\w+)/, $text, 1);
+    if ( $text =~ /class_name\s+(\w+)/ ){
+        $header{'class'} = $1;
+    } elsif ( $text =~ /^#[ \t]*\@name[ \t]+(\w+)/m ) {
+        $header{'class'} = $1;
+        if ( $text =~ /^#[ \t]*\@singleton/m ) {
+            $header{'is_singleton'} = 1;
+        }
+    } else {
+        die "No class name found for $g_file! Need class_name keyword or \\\@name tag.";
+    }
 
     # Get the brief description first.
     $header{'brief'} = strextract($g_brief_regex, $text, 1);
 
+    # Description
     $index = index($text, '@desc');
     if ($index > 0) {
         $index += length('@desc');
