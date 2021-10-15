@@ -10,7 +10,7 @@ As of right now, the following goals are met:
 - [X] Create "signals" section with a list of defined signals
 - [X] Create "methods" section with a list of exposed methods
 - [X] Create "constants" section with a list of defined constants
-- [ ] Create "enums" section with a list of defined enumerations
+- [X] Create "enums" section with a list of defined enumerations
 - [ ] Automatically build a table of contents for the HTML output
 
 ## Version History
@@ -260,17 +260,37 @@ Describes the type of the property---this tag is *required* for Doctool to accep
 
 ### Constants
 
-A constant looks like this:
+This block...
 
     ## Some random constant
     const SOME_CONSTANT = 0
 
-The brief is not necessary.
+...produces this HTML output (according to the default configuration of `template.html`):
+
+![HTML Const Output](README_images/doctool-const-out.png)
+
 The `const` keyword, the name of the constant, and the value are necessary.
 
 There are no data tags associated with constants.
 
 A description is allowed for this entity, the same as any other.
+
+### Enumerations
+
+The brief is not necessary; you can leave it empty, but the "##" must still be there.
+
+	## A bunch of numbers.
+	enum Numbers {
+		ONE = 1, ## He was number one!
+		TWO = 2, ## Luigi
+		THREE = 3 ## This number's the charm!
+	}
+
+This documentation block produces this output in HTML (according to the default configuration of `template.html`):
+
+![HTML Enum Output](README_images/doctool-enum-out.png "HTML Enum Output")
+
+There are no tags specific to
 
 ### Signals
 

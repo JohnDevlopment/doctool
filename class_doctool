@@ -11,8 +11,8 @@ use lib "$FindBin::Bin/lib";
 use Doctool::Getline;
 use Doctool::Util qw(append echo printerr str strextract);
 
-use String::Util qw(startswith endswith ltrim rtrim hascontent contains);
-#use autouse 'String::Util' => qw(startswith endswith ltrim rtrim hascontent contains);
+#use String::Util qw(startswith endswith ltrim rtrim hascontent contains);
+use autouse 'String::Util' => qw(startswith endswith ltrim rtrim hascontent contains);
 
 use Readonly;
 use Digest::MD5 qw(md5_hex);
@@ -114,7 +114,7 @@ sub Doctool {
 # Usage: _delete_block_attr text attr value
 sub _delete_block_attr ($$$) {
     my ($text,$attr,$value) = @_;
-    my $block = qr/section|article|div|table|header|tr|td|tbody/;
+    Readonly my $block => qr/section|article|div|table|header|tr|td|tbody/;
     $text =~ s{
         (
             ^              # Spaces from the start
@@ -133,6 +133,84 @@ sub _delete_block_attr ($$$) {
     }emx;
 
     return $text;
+}
+
+# Usage: _select_block_attr TEXT ATTR VALUE [MATCH]
+sub _select_block_attr {
+    {
+        my $argc = @_;
+        die "Wrong number of arguments: should be _select_block_attr TEXT ATTR VALUE [MATCH]"
+            if ($argc < 3 || $argc > 4);
+    }
+
+    Readonly my $block => qr/section|article|div|table|header|tr|td|tbody/;
+
+    my $text = shift;
+    my $attr = shift;
+    my $value = shift;
+
+    my $index = -1;
+    my $match = '';
+
+    if ( $text =~ m{
+        (
+            ^                # Spaces starting from the beginning of
+            [ \t]*           # the line
+            <($block)        # Start of the block
+            \s+              # One or more whitespaces
+            $attr="$value"   # Selected attribute with a specific value
+            (?:.|\n)*?       # Any number of lines ending with
+            </\2>            # the end of the block
+        )
+    }mxg ) {
+        $index = pos($text);
+        $match = $&;
+    }
+
+    # Return the match
+    my $r_match = shift;
+    if ( $r_match ) {
+        $$r_match = $match;
+    }
+
+    return $index;
+}
+
+# Usage: _select_span_attr TEXT ATTR VALUE [MATCH]
+sub _select_span_attr {
+    {
+        my $argc = @_;
+        die "Wrong number of arguments: should be _select_span_attr TEXT ATTR VALUE [MATCH]"
+            if ($argc < 3 || $argc > 4);
+    }
+
+    Readonly my $span => qr/abbr|b|code|del|dfn|em|i|ins|mark|q|small|strong|sub|sup|u|var/;
+
+    my $text = shift;
+    my $attr = shift;
+    my $value = shift;
+
+    my $index = -1;
+    my $match = '';
+
+    if ( $text =~ m{
+        <($span)         # Start of the block
+        [ \t]+           # One or more whitespaces
+        $attr="$value"   # Selected attribute with a specific value
+        (?:.|\n)*?       # Any number of lines ending with
+        </\1>            # the end of the block
+    }mxg ) {
+        $index = pos($text);
+        $match = $&;
+    }
+
+    # Return the match
+    my $r_match = shift;
+    if ( $r_match ) {
+        $$r_match = $match;
+    }
+
+    return $index;
 }
 
 sub _LoadTemplateOnce ($$) {
@@ -234,11 +312,13 @@ sub _BuildHTML {
     _ParseFormatTags(\$html);
     _FormatTypeNames(\$html);
 
-    $html =~ s/<!--.*?-->//g;
+    #$html =~ s/<!--.*?-->//g;
     $html = String::Util::crunchlines($html);
 
     return $html;
 }
+
+# HTML sections
 
 sub _HTMLEnum {
     my $r_html = shift;
@@ -248,14 +328,17 @@ sub _HTMLEnum {
 
     foreach my $enum (@$r_enums) {
         my $enumref_html = _LoadTemplateOnce('enum', 'c/enumref.html');
-        $enumref_html =~ s/\[ENUMNAME\]/$enum->get('name')/e;
+        my $temp_field;
+
+        # Name of the enum
+        $temp_field = $enum->get('name');
+        $enumref_html =~ s/\[ENUMNAME\]/$temp_field/;
 
         # \n<!--[ \t]*(<li>.+</li>)
         my $enumconst_html = strextract(qr^\n<!--[ \t]*(<li>.+</li>)^, $enumref_html, 1);
 
         my $enum_constants = '';
         foreach ( @{ $enum->get('members') } ) {
-            #echo sprintf('%s = %s -- %s', $_->{'name'}, $_->{'value'}, $_->{'brief'});
             append $enum_constants, sprintf($enumconst_html, $_->{'name'}, $_->{'value'}, $_->{'brief'});
         }
 
@@ -318,8 +401,6 @@ sub _HTMLMethod {
     }
 
     $$r_html =~ s/\[METHODS\]/$method_section/;
-
-    delete $g_sections{'methods'};
 }
 
 sub _HTMLSignal {
@@ -353,8 +434,6 @@ sub _HTMLSignal {
             substr($signal_section, $temp, length('<hr class="faint-line">')) = '';
         }
     }
-
-    delete $g_sections{'signals'};
 
     $$r_html =~ s/\[SIGNALS\]/$signal_section/;
 }
@@ -442,6 +521,53 @@ sub _HTMLProperty {
     $$r_html =~ s{\[PROPERTIES\]}{$table . "\n<br>\n" . $propdescs}e;
 }
 
+#####
+
+# Usage: _GetParagraphs $text \$index
+# Returns a reference to an array of paragraph strings
+# Entry condition: $index is set to the index right after the tag name in $text
+sub _GetParagraphs {
+    my $text = shift;
+    my $r_index = shift; # reference
+
+    my $index = $$r_index;
+    my $graff = getline($text, \$index);
+
+    my $line;
+    my @pars = ();
+
+    do {
+        $line = getline($text, \$index);
+
+        # Look for text on each line
+        if ($line =~ /^#\s*(.+)/) {
+            my $add_to_graff = $1;
+
+            # New paragraph, and the first thing we see is a section tag
+            # FIXME: this might present an issue for the cases where $g_sec_tags is found directly one line below a paragraph (no empty line above it)
+            if ($graff eq '' && $line =~ /^#\s*\@desc/) {
+                $line = '';
+                prevline($text, $index);
+            } else {
+                $graff = $graff . " $add_to_graff";
+            }
+        } else {
+            # Ending the paragraph and appending it to the array
+            if ($graff ne '') {
+                $graff =~ s{\@desc}{}g; # Remove stray section tags
+                $graff = ltrim($graff);
+                $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
+                push(@pars, $graff);
+                $graff = '';
+            }
+        }
+    } while (index($line, '#') == 0);
+
+    $$r_index = $index;
+
+    return \@pars;
+}
+
 sub _FormatTypeNames {
     my $r_html = shift;
 
@@ -478,12 +604,22 @@ sub _ParseFormatTags {
 
     $$r_html =~ s/\@br/<br>/g;
 
+    {
+        my $r_methods = $g_sections{'methods'};
+        foreach my $method (@$r_methods) {
+            my $funcname = $method->get('name');
+            my $link_text = sprintf('<a href="#method_%s">%s</a>', $funcname, $funcname);
+            $$r_html =~ s^\@function\s+$funcname^$link_text^g;
+        }
+    }
+
     my $pattern;
     {
         my $temp = join('|', keys %tags);
         $pattern = qr/$temp/;
     }
 
+    # Process @tag word
     $$r_html =~ s{
         (?:
             \@($pattern)
@@ -494,6 +630,7 @@ sub _ParseFormatTags {
         sprintf($tags{$1}, $2);
     }egx;
 
+    # Process @tag{multiple words and punctuation.}
     $$r_html =~ s{
         (?:
             \@($pattern)
@@ -544,9 +681,11 @@ sub _DetectDocType {
 
     no warnings;
     given ($doc_text) {
+        # property
         when (/^(?:export)?.*[ \t]*var\b.*/m) {
             $doc_type = 'export';
         }
+        # class
         when (/^(class_name|extends).*/m) {
             $doc_type = 'class';
 
@@ -562,12 +701,15 @@ sub _DetectDocType {
                 }
             }
         }
+        # signal
         when (/^signal[ \t]+\w+/m) {
             $doc_type = 'signal';
         }
+        # method
         when (/^func[ \t]+\w+[ \t]*\((.|\n)*\).*:/m) {
             $doc_type = 'method';
         }
+        # constant
         when (/^const[ \t]+\w+[ \t]*:[ \t]*\=[ \t]*.+/m) {
             unless ($doc_text =~ /^#[ \t]*\@type[ \t]+\w+/m) {
                 printerr("Missing required \@type tag. Unable to discern type of constant.");
@@ -575,7 +717,8 @@ sub _DetectDocType {
             }
             $doc_type = 'constant';
         }
-        when (/^enum([ \t])+\w+\1*\{(.|\n)*?\}/m) {
+        # enumeration
+        when (/^enum[ \t]+\w+[ \t]*\{(.|\n)*?\}/m) {
             $doc_type = 'enum';
         }
         default {
@@ -585,7 +728,7 @@ sub _DetectDocType {
 
     $doc_text =~ s/\n\n/\n/m;
 
-    return { 'text' => $doc_text, 'type' => rtrim($doc_type) };
+    return { 'text' => rtrim($doc_text), 'type' => $doc_type };
 }
 
 # Parse functions
@@ -604,15 +747,11 @@ sub _ParseEnum {
     my $text = shift;
     my $enum = Doctool::Enum->new();
 
-    #$enum->set('name', scalar strextract(qr/\nenum([ \t])+(\w+)\1*/, 2) );
-
     $enum->set('name', $2) if ( $text =~ /^enum([ \t])+(\w+)\1*/m );
 
     $enum->set('brief', $1) if ( $text =~ /^##[ \t]*(.+)/ );
 
-    # @constant {$1:name} {$2:value} {$3:brief}
-    while ( $text =~ /#[ \t]*\@constant[ \t]+(\w+)[ \t]+([^\s]+)[ \t]+(\N+)/mg ) {
-        #echo "$enum->add_constant($1, $2, $3)";
+    while ( $text =~ /(\w+)\s*=\s*(\S+)[ \t]*,?[ \t]*##[ \t]*(\N+)/mg ) {
         $enum->add_constant($1, $2, $3);
     }
 
@@ -843,52 +982,6 @@ sub _ParseProperty {
     }
 
     push($g_sections{'properties'}->@*, $prop);
-}
-
-
-# Usage: _GetParagraphs $text \$index
-# Returns a reference to an array of paragraph strings
-# Entry condition: $index is set to the index right after the tag name in $text
-sub _GetParagraphs {
-    my $text = shift;
-    my $r_index = shift; # reference
-
-    my $index = $$r_index;
-    my $graff = getline($text, \$index);
-
-    my $line;
-    my @pars = ();
-
-    do {
-        $line = getline($text, \$index);
-
-        # Look for text on each line
-        if ($line =~ /^#\s*(.+)/) {
-            my $add_to_graff = $1;
-
-            # New paragraph, and the first thing we see is a section tag
-            # FIXME: this might present an issue for the cases where $g_sec_tags is found directly one line below a paragraph (no empty line above it)
-            if ($graff eq '' && $line =~ /^#\s*\@desc/) {
-                $line = '';
-                prevline($text, $index);
-            } else {
-                $graff = $graff . " $add_to_graff";
-            }
-        } else {
-            # Ending the paragraph and appending it to the array
-            if ($graff ne '') {
-                $graff =~ s{\@desc}{}g; # Remove stray section tags
-                $graff = ltrim($graff);
-                $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
-                push(@pars, $graff);
-                $graff = '';
-            }
-        }
-    } while (index($line, '#') == 0);
-
-    $$r_index = $index;
-
-    return \@pars;
 }
 
 1;

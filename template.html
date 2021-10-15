@@ -142,16 +142,16 @@
                 }
             }*/
             function addRefsToFunctionClass() {
-                const es = document.getElementsByClassName('functionref');
+                const es = document.getElementsByClassName('function');
                 let flen = es.length;
                 for (let i = 0; i < flen; ++i) {
                     let buf = es[i].innerHTML;
-                    es[i].innerHTML = "<a href=\"#" + buf.match(/[a-zA-Z_]*(?=\(\))/) + "\">" + buf + "</a>";
+                    es[i].innerHTML = "<a href=\"#method_" + buf.match(/[a-zA-Z_]*/) + "\">" + buf + "</a>";
                 }
             }
         </script>
     </head>
-    <body onload="addRefsToFunctionClass()">
+    <body > <!-- onload="addRefsToFunctionClass()" -->
         <div id="main">
             <div id="flex-container">
                 <nav id="toc">
