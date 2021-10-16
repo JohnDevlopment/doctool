@@ -15,8 +15,7 @@ As of right now, the following goals are met:
 
 ## Version History
 
-I am currently developing Doctool and it should not be considered stable yet. The current version of Doctool can be found [here](VERSION).
-A list of changes made to each version can be found [here](CHANGES).
+Version 1.0.0 is out and can be considered ready.
 
 ## Installation
 
