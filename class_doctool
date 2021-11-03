@@ -594,12 +594,14 @@ sub _FormatTypeNames {
 sub _ParseFormatTags {
     my $r_html = shift;
     my %tags = (
-        code => '<code>%s</code>',
-        b => '<b>%s</b>',
-        i => '<i>%s</i>',
         a => '<i class="argument">%s</i>',
-        function => '<code class="function">%s</code>',
+        b => '<b>%s</b>',
         class => '<code class="class">%s</code>'
+        code => '<code>%s</code>',
+        constant => '<code class="constant">%s</code>'
+        enum => '<code class="enum">%s</code>',
+        function => '<code class="function">%s</code>',
+        i => '<i>%s</i>',
     );
 
     $$r_html =~ s/\@br/<br>/g;
@@ -913,6 +915,7 @@ sub _ParseClass {
         if ( $text =~ /^#[ \t]*\@singleton/m ) {
             $header{'is_singleton'} = 1;
         }
+        # TODO: Add an elsif to allow NAME tag in the form: @name{Multiple words}
     } else {
         die "No class name found for $g_file! Need class_name keyword or \\\@name tag.";
     }

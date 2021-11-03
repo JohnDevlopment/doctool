@@ -114,9 +114,19 @@ generic `<code>` tags.
 &bullet; `code`  
 Encloses the tag-parameter in HTML `<code>` tags.
 
+&bullet; `constant`  
+Encloses the tag-parameter in HTML `<code="constant">` tags to denote that it is the name of a constant.
+
+&bullet; `enum`  
+Encloses the tag-parameter in HTML `<code="enum">` tags to denote that it is the name of an enumeration.
+
 &bullet; `function`  
 Encloses the tag-parameter in HTML `<code="function">` tags, which has different formatting than
-generic `<code>` tags.
+generic `<code>` tags. If the function happens to be in the same documentation, this tag produces
+a link to it.
+
+&bullet; `i`  
+Encloses the tag-parameter in HTML `<i>` tags, producing italics.
 
 #### Data Tags
 
