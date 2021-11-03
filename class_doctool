@@ -295,18 +295,7 @@ sub _BuildHTML {
     if ($g_sections{'constants'}->$#* < 0) {
         $html = delete_block_id($html, 'constants');
     } else {
-        my $text = '<ul>';
-        my $constants = $g_sections{'constants'};
-        foreach my $const (@$constants) {
-            my $const_ref = _LoadTemplateOnce('const', 'c/constref.html');
-            $const_ref =~ s{\[CONSTNAME\]}{
-                sprintf(q^<b>%s</b> = %s^, $const->{'name'}, $const->{'value'})
-            }eg;
-            $const_ref =~ s/\[CONSTBRIEF\]/$const->{'brief'}/e;
-            append($text, $const_ref);
-        }
-        append($text, '</ul>');
-        $html =~ s/\[CONSTANTS\]/$text/;
+        _HTMLConstant(\$html);
     }
 
     _ParseFormatTags(\$html);
@@ -319,6 +308,23 @@ sub _BuildHTML {
 }
 
 # HTML sections
+
+sub _HTMLConstant {
+    my $r_html = shift;
+    my $r_constants = $g_sections{'constants'};
+
+    my $text = '<ul>';
+    foreach my $const (@$r_constants) {
+        my $const_ref = _LoadTemplateOnce('const', 'c/constref.html');
+        $const_ref =~ s{\[CONSTNAME\]}{
+            sprintf(q^<b>%s</b> = %s^, $const->{'name'}, $const->{'value'})
+        }eg;
+        $const_ref =~ s/\[CONSTBRIEF\]/$const->{'brief'}/e;
+        append($text, $const_ref);
+    }
+    append($text, '</ul>');
+    $$r_html =~ s/\[CONSTANTS\]/$text/;
+}
 
 sub _HTMLEnum {
     my $r_html = shift;
@@ -596,9 +602,9 @@ sub _ParseFormatTags {
     my %tags = (
         a => '<i class="argument">%s</i>',
         b => '<b>%s</b>',
-        class => '<code class="class">%s</code>'
+        class => '<code class="class">%s</code>',
         code => '<code>%s</code>',
-        constant => '<code class="constant">%s</code>'
+        constant => '<code class="constant">%s</code>',
         enum => '<code class="enum">%s</code>',
         function => '<code class="function">%s</code>',
         i => '<i>%s</i>',
@@ -708,11 +714,11 @@ sub _DetectDocType {
             $doc_type = 'signal';
         }
         # method
-        when (/^func[ \t]+\w+[ \t]*\((.|\n)*\).*:/m) {
+        when (/^(?:static[ \t]+)?func[ \t]+\w+[ \t]*\((.|\n)*\).*:/m) {
             $doc_type = 'method';
         }
         # constant
-        when (/^const[ \t]+\w+[ \t]*:[ \t]*\=[ \t]*.+/m) {
+        when (/^const[ \t]+\w+[ \t]*:?[ \t]*\=[ \t]*.+/m) {
             unless ($doc_text =~ /^#[ \t]*\@type[ \t]+\w+/m) {
                 printerr("Missing required \@type tag. Unable to discern type of constant.");
                 break;
@@ -773,7 +779,7 @@ sub _ParseConstant {
 
     $constant->{'brief'} = strextract(qr/##[ \t]*(.*)/, $text, 1);
 
-    my @values = strextract(qr/const[ \t]+(\w+)[ \t]*:[ \t]*\=[ \t]*(.*)/, $text, 1, 2);
+    my @values = strextract(qr/const[ \t]+(\w+)[ \t]*:?[ \t]*\=[ \t]*(.*)/, $text, 1, 2);
     $constant->{'name'} = $values[0];
     $constant->{'value'} = $values[1];
 
@@ -794,6 +800,10 @@ sub _ParseMethod {
     unless (
         $text =~ m{
             ^          #
+            (?:        #
+                static # Optional "static" keyword.
+                [ \t]+ #
+            )?         #
             func       # Starts with the word "func" followed by spaces.
             [ \t]+     #
             (\w+)      # Function name = $1
