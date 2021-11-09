@@ -128,6 +128,12 @@ a link to it.
 &bullet; `i`  
 Encloses the tag-parameter in HTML `<i>` tags, producing italics.
 
+&bullet; `link`  
+Syntax: `@link{<link>}{<text>}` `@link{<link>}`
+Creates a hyperlink with the "href" attribute set to *link*. If *text* is given, it provides the text the link will display instead of showing the URL.
+
+Assuming `@link{google.com}`, the output will be: [google.com](google.com). With the text parameter added, assuming `@link{google.com}{Google}`, the output we get is: [Google](google.com).
+
 #### Data Tags
 
 There are no universl data tags; each type of docmentation contains its own unique set of data tags. Check the sections
@@ -230,9 +236,8 @@ This is a real-life example of an exported property from one of my own classes.
 Doctool reads the property definition to get the name of the property, so there is no need for a tag
 that specifies the name.
 
-Doctool is looking for *exported* properties, which means that the `export` keyword should be there;
-however, Doctool doesn't require the `export` keyword in order to document the property.
-Consequently, all of the following lines are permitted.
+Due to the syntax of properties, any variable that gets documented is interpreted as an exported property.
+This is because the `export` keyword is allowed (but not required) for Doctool to parse that entity.
 
     # With 'export'
     export(String) var file = ""
@@ -243,9 +248,8 @@ Consequently, all of the following lines are permitted.
     var file: String = ""
     var file := ""
 
-Why does Doctool now require `export` for exported properties?
+Why does Doctool not require `export` for exported properties?
 Because there are properties that can be exported through the `_get_property_list` method.
-As a matter of fact, I do that for some of my own classes, which is why I made it this way.
 
 #### Data Tags
 
@@ -272,6 +276,7 @@ Describes the type of the property---this tag is *required* for Doctool to accep
 This block...
 
     ## Some random constant
+	# @type int
     const SOME_CONSTANT = 0
 
 ...produces this HTML output (according to the default configuration of `template.html`):
@@ -280,9 +285,18 @@ This block...
 
 The `const` keyword, the name of the constant, and the value are necessary.
 
-There are no data tags associated with constants.
+**Note:** Every constant needs a type in order to be documented. As such, you can define its type in one of two ways. Method 1, shown above, is to use the `@type` tag (described below). Method 2 is by explicitly typing the constant in its declaration.
 
-A description is allowed for this entity, the same as any other.
+Modifying the example above with an explicit type produces this:
+
+	## Some random constant
+	const SOME_CONSTANT: int = 0
+
+#### Data Tags
+
+&bullet; `type`  
+Syntax: `@type TYPE`  
+Defines the type of the constant. If the constant itself doesn't explicitly state its type, then this tag is neccessary.
 
 ### Enumerations
 

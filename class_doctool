@@ -300,6 +300,7 @@ sub _BuildHTML {
 
     _ParseFormatTags(\$html);
     _FormatTypeNames(\$html);
+    _ParseLinks(\$html);
 
     #$html =~ s/<!--.*?-->//g;
     $html = String::Util::crunchlines($html);
@@ -313,17 +314,34 @@ sub _HTMLConstant {
     my $r_html = shift;
     my $r_constants = $g_sections{'constants'};
 
-    my $text = '<ul>';
+    my $table = <<'END_STRING';
+<table>
+    <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Value</th>
+        <th>Brief</th>
+    </tr>
+    %s
+</table>
+END_STRING
+
+    my $rows = '';
+
     foreach my $const (@$r_constants) {
         my $const_ref = _LoadTemplateOnce('const', 'c/constref.html');
-        $const_ref =~ s{\[CONSTNAME\]}{
-            sprintf(q^<b>%s</b> = %s^, $const->{'name'}, $const->{'value'})
-        }eg;
+        $const_ref =~ s/\[CONSTTYPE\]/$const->{'type'}/e;
+        $const_ref =~ s/\[CONSTNAME\]/$const->{'name'}/eg;
+        $const_ref =~ s/\[CONSTVALUE\]/$const->{'value'}/e;
         $const_ref =~ s/\[CONSTBRIEF\]/$const->{'brief'}/e;
-        append($text, $const_ref);
+        append($rows, $const_ref);
     }
-    append($text, '</ul>');
-    $$r_html =~ s/\[CONSTANTS\]/$text/;
+
+    # Put into table string
+    $table = sprintf($table, $rows);
+
+    # Add string to HTML text
+    $$r_html =~ s/\[CONSTANTS\]/$table/;
 }
 
 sub _HTMLEnum {
@@ -574,6 +592,13 @@ sub _GetParagraphs {
     return \@pars;
 }
 
+sub _ParseLinks {
+    my $r_html = shift;
+
+    $$r_html =~ s/\@link\{(.+)\}\{(.+)\}/<a href="$1">$2<\/a>/g;
+    $$r_html =~ s/\@link\{(.+)\}/<a href="$1">$1<\/a>/g;
+}
+
 sub _FormatTypeNames {
     my $r_html = shift;
 
@@ -718,11 +743,16 @@ sub _DetectDocType {
             $doc_type = 'method';
         }
         # constant
-        when (/^const[ \t]+\w+[ \t]*:?[ \t]*\=[ \t]*.+/m) {
-            unless ($doc_text =~ /^#[ \t]*\@type[ \t]+\w+/m) {
-                printerr("Missing required \@type tag. Unable to discern type of constant.");
-                break;
-            }
+        # syntax: const NAME[ :]*= VALUE
+        when (/^const([ \t])+(\w+)\1*:?.*=\1*.+/m) {
+            # syntax: const NAME[ : TYPE ]= VALUE
+            #unless ($doc_text =~ /^const.*:[ \t]\w+/m) {
+            #    # no type defined
+            #    unless ($doc_text =~ /^#[ \t]*\@type[ \t]+\w+/m) {
+            #        printerr("Unknow type of constant \"$2\". Needs to be explicitly typed either in the code or with a \@type tag.");
+            #        break;
+            #    }
+            #}
             $doc_type = 'constant';
         }
         # enumeration
@@ -775,13 +805,28 @@ sub _ParseConstant {
         type => ''
     };
 
-    $constant->{'type'} = strextract(qr/\@type[ \t]+(\w+)/, $text, 1);
+    # Get brief
+    if ($text =~ /##[ \t](.+)/) {
+        $constant->{'brief'} = $1;
+    }
 
-    $constant->{'brief'} = strextract(qr/##[ \t]*(.*)/, $text, 1);
+    # Get type
+    if ($text =~ /:[ \t]*(\w+)/) {
+        $constant->{'type'} = $1;
+    } elsif ($text =~ /^#[ \t]*\@type[ \t]+(\w+)/m) {
+        $constant->{'type'} = $1;
+    } else {
+        $constant->{'type'} = 'Variant';
+    }
 
-    my @values = strextract(qr/const[ \t]+(\w+)[ \t]*:?[ \t]*\=[ \t]*(.*)/, $text, 1, 2);
-    $constant->{'name'} = $values[0];
-    $constant->{'value'} = $values[1];
+    # Get name
+    if ($text =~ /const[ \t]*(\w+)/) {
+        $constant->{'name'} = $1;
+    }
+
+    # Get value
+    $text =~ /=[ \t]*(.+)/;
+    $constant->{'value'} = $1;
 
     push($g_sections{'constants'}->@*, $constant);
 }
