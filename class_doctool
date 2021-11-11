@@ -22,6 +22,8 @@ use subs qw(Doctool ParseEntity);
 my %g_sections;
 my $g_file;
 
+# TODO: Add a tag that starts an unordered list
+
 Readonly my $g_brief_regex => qr/##[ \t]*(.+)/;
 
 Readonly my %g_parse_subs => (
@@ -626,6 +628,7 @@ sub _ParseFormatTags {
     my $r_html = shift;
     my %tags = (
         a => '<i class="argument">%s</i>',
+        at => '@%s',
         b => '<b>%s</b>',
         class => '<code class="class">%s</code>',
         code => '<code>%s</code>',

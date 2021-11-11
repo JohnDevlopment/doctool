@@ -104,6 +104,9 @@ The first form modifies the formatting of a single word, and the second form aff
 Used to denote an argument, either to a function or a signal.
 Italicizes the tag-parameter.
 
+&bullet; `at`  
+Prepends an at-sign to the tag-parameter.
+
 &bullet; `b`  
 Emboldens the tag-parameter.
 
