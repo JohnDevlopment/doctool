@@ -132,7 +132,7 @@ a link to it.
 &bullet; `i`  
 Encloses the tag-parameter in HTML `<i>` tags, producing italics.
 
-&bullet; `i`  
+&bullet; `img`  
 Syntax: `@img{src}` `@img{src}{alt}` `@img{src}{alt}{title}`  
 Produces an image tag. *Src* is a path to an image file; if the path is relative, is relative to the final HTML file.
 **Note:** This tag is experimental and is subject to change.
