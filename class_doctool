@@ -597,8 +597,13 @@ sub _GetParagraphs {
 sub _ParseLinks {
     my $r_html = shift;
 
-    $$r_html =~ s/\@link\{(.+)\}\{(.+)\}/<a href="$1">$2<\/a>/g;
-    $$r_html =~ s/\@link\{(.+)\}/<a href="$1">$1<\/a>/g;
+    $$r_html =~ s/\@link\{(.+)\}\{(.+)\}/<a href="$1">$2<\/a>/g; # @link{href}{text}
+    $$r_html =~ s/\@link\{(.+)\}/<a href="$1">$1<\/a>/g; # @link{href}
+
+    # TODO: make a tag that takes a dictionary of options much like HTML tags do: @img{SRC}{alt: ... ; title: ...}
+    $$r_html =~ s/\@img\{(.+)\}\{(.+)\}\{(.+)\}/<img src="$1" title="$3">$2<\/img>/g; # @img{src}{alt}{title}
+    $$r_html =~ s/\@img\{(.+)\}\{(.+)\}/<img src="$1">$2<\/img>/g; # @img{src}{alt}
+    $$r_html =~ s/\@img\{(.+)\}/<img src="$1"><\/img>/g; # @img{src}
 }
 
 sub _FormatTypeNames {
@@ -635,7 +640,7 @@ sub _ParseFormatTags {
         constant => '<code class="constant">%s</code>',
         enum => '<code class="enum">%s</code>',
         function => '<code class="function">%s</code>',
-        i => '<i>%s</i>',
+        i => '<i>%s</i>'
     );
 
     $$r_html =~ s/\@br/<br>/g;
