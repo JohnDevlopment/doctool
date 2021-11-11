@@ -15,7 +15,8 @@ As of right now, the following goals are met:
 
 ## Version History
 
-Version 1.0.0 is out and can be considered ready.
+Version 1.2 beta. This is safe to use in production, but the use of the experimental `@img` tag is
+not recommended.
 
 ## Installation
 
@@ -130,6 +131,11 @@ a link to it.
 
 &bullet; `i`  
 Encloses the tag-parameter in HTML `<i>` tags, producing italics.
+
+&bullet; `i`  
+Syntax: `@img{src}` `@img{src}{alt}` `@img{src}{alt}{title}`  
+Produces an image tag. *Src* is a path to an image file; if the path is relative, is relative to the final HTML file.
+**Note:** This tag is experimental and is subject to change.
 
 &bullet; `link`  
 Syntax: `@link{<link>}{<text>}` `@link{<link>}`
