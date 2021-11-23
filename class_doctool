@@ -256,10 +256,10 @@ sub _BuildHTML {
 
     # Description
     if (exists $header{'description'} && $header{'description'}->$#* >= 1 ) {
-        my $text = '';
-        for my $i (0 .. $header{'description'}->$#*) {
-            $text = $text . '<p>' . $header{'description'}[$i] . '</p>';
-        }
+        my $text = _FormatDescription( $header{'description'} );
+        #for my $i (0 .. $header{'description'}->$#*) {
+        #    $text = $text . '<p>' . $header{'description'}[$i] . '</p>';
+        #}
         $html =~ s/\[DESC\]/$text/;
     } else {
         $html = delete_block_id($html, 'description');
@@ -414,12 +414,7 @@ sub _HTMLMethod {
                 append($graffs, '<p class="brief">' . $brief . '</p>');
             }
 
-            my $r_method_descs = $method->get('description');
-            if ( ref($r_method_descs) eq 'ARRAY' ) {
-                for my $i (0 .. $r_method_descs->$#*) {
-                    append($graffs, '<p>' . $r_method_descs->[$i] . '</p>');
-                }
-            }
+            $graffs = $graffs . _FormatDescription($method->get('description'));
             $method_html =~ s/\[METHODDESC\]/$graffs/;
         }
 
@@ -442,13 +437,7 @@ sub _HTMLSignal {
         $signalref_html =~ s/\[SIGNALBRIEF\]/$signal->get('brief')/eg;
 
         # Add paragraphs to the signal section
-        my $text = '';
-        my $r_signaldescs = $signal->get('description');
-        if ( ref($r_signaldescs) eq 'ARRAY' ) {
-            for my $i (0 .. $r_signaldescs->$#*) {
-                append($text, '<p>' . $r_signaldescs->[$i] . '</p>');
-            }
-        }
+        my $text = _FormatDescription( $signal->get('description') );
         $signalref_html =~ s/\[SIGNALDESC\]/$text/;
 
         append($signal_section, $signalref_html . '<hr class="faint-line">');
@@ -525,16 +514,9 @@ sub _HTMLProperty {
 
         # Property description
         {
-            my $r_array = $prop->get('description');
-            if (ref($r_array) eq 'ARRAY') {
-                $text = '';
-                foreach (@$r_array) {
-                    append($text, '<p>' . $_ . '</p>');
-                }
-                $propdesc =~ s/\[PROPDESC\]/$text/e;
-            } else {
-                $propdesc =~ s/\[PROPDESC\]//;
-            }
+            #my $r_array = $prop->get('description');
+            $text = _FormatDescription($prop->get('description'));
+            $propdesc =~ s/\[PROPDESC\]/$text/;
 
             my $brief = $prop->get('brief');
             $propdesc =~ s/\[PROPBRIEF\]/$brief/;
@@ -682,6 +664,21 @@ sub _ParseFormatTags {
     }{
         sprintf($tags{$1}, $2);
     }egx;
+}
+
+sub _FormatDescription {
+    my $r_graffs = shift;
+
+    my $text = '';
+
+    # Valid array reference
+    if ( ref($r_graffs) eq 'ARRAY' ) {
+        for my $i (0 .. $r_graffs->$#*) {
+            $text = $text . sprintf('<p>%s</p>', $r_graffs->[$i]);
+        }
+    }
+
+    return $text;
 }
 
 sub _DetectDocType {
