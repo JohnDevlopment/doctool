@@ -180,9 +180,8 @@ sub set {
 
     croak _print_arg_error('set', 'arg value') if scalar(@_) != 2;
 
-    # TODO: don't allow to set 'args' directly
-
     my $param = shift;
+    die "Cannot set 'args' directly, use *_arg functions instead." if ($param eq 'arg');
     _check_attribute_exists($param);
 
     my $value = shift;
