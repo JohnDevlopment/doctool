@@ -256,7 +256,8 @@ sub _BuildHTML {
 
     # Description
     if (exists $header{'description'} && $header{'description'}->$#* >= 1 ) {
-        my $text = _FormatDescription( $header{'description'} );
+        # FIXME: For some reason, the hashes in the array (representing lists), do not get rendered to text
+        my $text = _FormatParagraphs( $header{'description'} );
         #for my $i (0 .. $header{'description'}->$#*) {
         #    $text = $text . '<p>' . $header{'description'}[$i] . '</p>';
         #}
@@ -414,7 +415,7 @@ sub _HTMLMethod {
                 append($graffs, '<p class="brief">' . $brief . '</p>');
             }
 
-            $graffs = $graffs . _FormatDescription($method->get('description'));
+            $graffs = $graffs . _FormatParagraphs($method->get('description'));
             $method_html =~ s/\[METHODDESC\]/$graffs/;
         }
 
@@ -437,7 +438,7 @@ sub _HTMLSignal {
         $signalref_html =~ s/\[SIGNALBRIEF\]/$signal->get('brief')/eg;
 
         # Add paragraphs to the signal section
-        my $text = _FormatDescription( $signal->get('description') );
+        my $text = _FormatParagraphs( $signal->get('description') );
         $signalref_html =~ s/\[SIGNALDESC\]/$text/;
 
         append($signal_section, $signalref_html . '<hr class="faint-line">');
@@ -515,7 +516,7 @@ sub _HTMLProperty {
         # Property description
         {
             #my $r_array = $prop->get('description');
-            $text = _FormatDescription($prop->get('description'));
+            $text = _FormatParagraphs($prop->get('description'));
             $propdesc =~ s/\[PROPDESC\]/$text/;
 
             my $brief = $prop->get('brief');
@@ -544,22 +545,81 @@ sub _GetParagraphs {
     my $line;
     my @pars = ();
 
+    # Pertaining to lists
+    my %current_list = (type => undef, items => undef);
+    my @list_items = ();
+    my $current_item = undef;
+
     do {
+        #use experimental 'switch';
         $line = getline($text, \$index);
 
-        # Look for text on each line
-        if ($line =~ /^#\s*(.+)/) {
+        if ($line =~ /^#\s*\@list_begin\{(\w+)\}/) {
+            # Start of a list
+
+            my $list_type = $1;
+            if ($list_type ne 'unordered' && $list_type ne 'ordered') {
+                printerr("Invalid list type, must be ordered or unordered");
+                next;
+            }
+
+            %current_list = (type => $list_type, items => '');
+            @list_items = ();
+            $current_item = '';
+        } elsif ($line =~ /^#[ \t]*\@item[ \t]+(.*)/) {
+            # Start list item
+
+            # First, close the previous item by appending it to the array
+            if (ref($current_item) eq 'HASH') {
+                push(@list_items, $current_item);
+                $current_item = '';
+            }
+
+            my $item_caption = $1 || 'UNDEFINED';
+            $current_item = { caption => $item_caption, text => '' };
+        } elsif ($line =~ /^#\s*(.+)/) {
+            # Paragraph text
+
             my $add_to_graff = $1;
 
-            # New paragraph, and the first thing we see is a section tag
-            # FIXME: this might present an issue for the cases where $g_sec_tags is found directly one line below a paragraph (no empty line above it)
-            if ($graff eq '' && $line =~ /^#\s*\@desc/) {
-                $line = '';
-                prevline($text, $index);
+            if ( ref($current_item) eq 'HASH' ) {
+                # Add line to list item
+
+                my $item_text = $current_item->{'text'};
+                $item_text = $item_text . $add_to_graff;
+                $current_item->{'text'} = $item_text;
             } else {
+                # Add line to current paragraph
+
+                # New paragraph, and the first thing we see is a section tag
+                # _FIXME: this might present an issue for the cases where @desc is found directly one line below a paragraph (no empty line above it)
+                #if ($graff eq '' && $line =~ /^#\s*\@desc/) {
+                #    $line = '';
+                #    prevline($text, $index);
+                #} else {
+                #    $graff = $graff . " $add_to_graff";
+                #}
                 $graff = $graff . " $add_to_graff";
             }
-        } else {
+        } elsif ($line =~ /^#[ \t]*\@list_end/) {
+            # End the current list
+
+            die "Can't close a list that was never opened" if (! defined $current_list{'type'});
+
+            # First, close the previous item by appending it to the array
+            die "No list items provided" unless (ref($current_item) eq 'HASH');
+            push(@list_items, $current_item);
+            $current_item = '';
+
+            $current_list{'items'} = \@list_items;
+
+            # Add list to the array of paragraphs
+            push(@pars, \%current_list);
+            %current_list = ();
+        }
+        else {
+            # End of a paragraph
+
             # Ending the paragraph and appending it to the array
             if ($graff ne '') {
                 $graff =~ s{\@desc}{}g; # Remove stray section tags
@@ -666,15 +726,49 @@ sub _ParseFormatTags {
     }egx;
 }
 
-sub _FormatDescription {
+sub _FormatParagraphs {
     my $r_graffs = shift;
-
     my $text = '';
 
     # Valid array reference
     if ( ref($r_graffs) eq 'ARRAY' ) {
+        # Iterate over each element
         for my $i (0 .. $r_graffs->$#*) {
-            $text = $text . sprintf('<p>%s</p>', $r_graffs->[$i]);
+            my $graff = $r_graffs->[$i];
+
+            if ( ref($graff) eq 'HASH' ) {
+                # Is a list
+
+                my $r_list = $graff;
+                my $tag = '';
+                my $list_text = '';
+                my $list_type = $r_list->{'type'};
+
+                # Tag depending on the type
+                if ($list_type eq 'unordered') {
+                    $tag = 'ul';
+                } else {
+                    $tag = 'ol';
+                }
+
+                # Opening tag
+                $list_text = "<$tag>";
+
+                # Add list items
+                my $r_items = $r_list->{'items'};
+                for my $j (0 .. $r_items->$#*) {
+                    # Each element is a hash
+                    my $r_item = $r_items->[$j];
+                    $list_text = $list_text . sprintf('<li>%s<%s><li>%s</li></%s></li>', $r_item->{'caption'}, $tag, $r_item->{'text'}, $tag);
+                }
+
+                # Closing tag
+                $list_text = $list_text . "</$tag>";
+
+                append($text, $list_text);
+            } else {
+                $text = $text . sprintf('<p>%s</p>', $graff);
+            }
         }
     }
 
@@ -988,6 +1082,8 @@ sub _ParseClass {
     if ($index > 0) {
         $index += length('@desc');
         $header{'description'} = _GetParagraphs($text, \$index);
+
+        # TODO: print the data here to check if the lists are properly structured
     }
 
     die q/Syntax error: no "extends" found in input/ unless ($text =~ /^extends[ \t]+(\w+)/m);
