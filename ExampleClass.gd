@@ -4,23 +4,25 @@
 #
 #       The following functions are imported from @class Node:
 #
-#       @list_begin{unordered}
+#       @list_begin unordered
 #       @item _enter_tree
-#       The @function _enter_tree() function is supported.
+#         The @function _enter_tree() function is supported.
 #       @item _exit_tree
-#       The @function _exit_tree() function is supported.
-#       @list_end
-#
-#       Imported signals:
-#
-#       @list_begin{unordered}
-#       @item ready
-#       The ready signal is supported.
-#       @item renamed
-#       The renamed signal is supported.
+#         The @function _exit_tree() function is supported.
+#         It's called when the node exits the tree.
 #       @list_end
 extends Object
 class_name NodeCustom
+
+#       Imported signals:
+#
+#       @list_begin unordered
+#       @item ready
+#       The ready signal is supported.
+#       It can be used the same way as the @class Node class.
+#       @item renamed
+#       The renamed signal is supported.
+#       @list_end
 
 ## Emitted when a node is ready.
 signal ready

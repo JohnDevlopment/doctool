@@ -22,8 +22,6 @@ use subs qw(Doctool ParseEntity);
 my %g_sections;
 my $g_file;
 
-# TODO: Add a tag that starts an unordered list
-
 Readonly my $g_brief_regex => qr/##[ \t]*(.+)/;
 
 Readonly my %g_parse_subs => (
@@ -537,96 +535,125 @@ sub _HTMLProperty {
 # Entry condition: $index is set to the index right after the tag name in $text
 sub _GetParagraphs {
     my $text = shift;
-    my $r_index = shift; # reference
-
+    my $r_index = shift;
     my $index = $$r_index;
     my $graff = getline($text, \$index);
-
-    my $line;
     my @pars = ();
 
     # Pertaining to lists
-    my %current_list = (type => undef, items => undef);
-    my @list_items = ();
+    my %current_list = ();
+    my @current_list_items = ();
     my $current_item = undef;
 
+    my $close_list_item = <<'EOF';
+    if (ref($current_item) eq 'HASH') {
+        push(@current_list_items, $current_item);
+        $current_item = undef;
+        1;
+    }
+EOF
+
+    use Data::Dumper;
+
+    my $line = '';
     do {
-        #use experimental 'switch';
+        use experimental 'switch';
         $line = getline($text, \$index);
 
-        if ($line =~ /^#\s*\@list_begin\{(\w+)\}/) {
-            # Start of a list
+        given ($line) {
+            when (/^#[ \t]*\@list_begin[ \t]+(\w+)/) {
+                # Start a list
 
-            my $list_type = $1;
-            if ($list_type ne 'unordered' && $list_type ne 'ordered') {
-                printerr("Invalid list type, must be ordered or unordered");
-                next;
+                my $list_type = $1;
+                if ($list_type ne 'unordered' && $list_type ne 'ordered') {
+                    printerr("Invalid list type, must be ordered or unordered");
+                    next;
+                }
+
+                # Initialize data to their default values
+                %current_list = (type => $list_type, items => undef);
+                @current_list_items = ();
+                $current_item = undef;
             }
+            when (/^#[ \t]*\@item[ \t]+(.*)/) {
+                # Start list item
 
-            %current_list = (type => $list_type, items => '');
-            @list_items = ();
-            $current_item = '';
-        } elsif ($line =~ /^#[ \t]*\@item[ \t]+(.*)/) {
-            # Start list item
+                my $item_caption = $1 || 'UNDEFINED';
 
-            # First, close the previous item by appending it to the array
-            if (ref($current_item) eq 'HASH') {
-                push(@list_items, $current_item);
-                $current_item = '';
+                # No open list
+                if (! defined $current_list{'type'}) {
+                    printerr("Invalid list declaration \"\@item $item_caption\": No open list");
+                    break;
+                }
+
+                eval $close_list_item;
+
+                $current_item = { caption => $item_caption, text => '' };
             }
+            when (/^#[ \t]*\@list_end/) {
+                # End the current list
 
-            my $item_caption = $1 || 'UNDEFINED';
-            $current_item = { caption => $item_caption, text => '' };
-        } elsif ($line =~ /^#\s*(.+)/) {
-            # Paragraph text
+                # No open list
+                die "Can't close a list that was never opened" if (! defined $current_list{'type'});
 
-            my $add_to_graff = $1;
+CLOSELIST:
 
-            if ( ref($current_item) eq 'HASH' ) {
-                # Add line to list item
+                # No items to add
+                die "No list items provided" unless (ref($current_item) eq 'HASH');
 
-                my $item_text = $current_item->{'text'};
-                $item_text = $item_text . $add_to_graff;
-                $current_item->{'text'} = $item_text;
-            } else {
-                # Add line to current paragraph
+                eval $close_list_item;
 
-                # New paragraph, and the first thing we see is a section tag
-                # _FIXME: this might present an issue for the cases where @desc is found directly one line below a paragraph (no empty line above it)
-                #if ($graff eq '' && $line =~ /^#\s*\@desc/) {
-                #    $line = '';
-                #    prevline($text, $index);
-                #} else {
-                #    $graff = $graff . " $add_to_graff";
-                #}
-                $graff = $graff . " $add_to_graff";
+                # Add to list structure and clear temp array
+                $current_list{'items'} = [@current_list_items];
+                @current_list_items = ();
+
+                # Add list to the array of paragraphs
+                push(@pars, {%current_list});
+                %current_list = ();
             }
-        } elsif ($line =~ /^#[ \t]*\@list_end/) {
-            # End the current list
+            when (/^#\s*(.+)/) {
+                # Paragraph text
 
-            die "Can't close a list that was never opened" if (! defined $current_list{'type'});
+                my $add_to_graff = $1;
 
-            # First, close the previous item by appending it to the array
-            die "No list items provided" unless (ref($current_item) eq 'HASH');
-            push(@list_items, $current_item);
-            $current_item = '';
+                if ( ref($current_item) eq 'HASH' ) {
+                    # Add line to list item
 
-            $current_list{'items'} = \@list_items;
+                    my $item_text = $current_item->{'text'};
+                    #$item_text = $item_text . $add_to_graff;
+                    append($item_text, " $add_to_graff");
+                    $current_item->{'text'} = $item_text;
+                } else {
+                    # Add line to current paragraph
 
-            # Add list to the array of paragraphs
-            push(@pars, \%current_list);
-            %current_list = ();
-        }
-        else {
-            # End of a paragraph
+                    # New paragraph, and the first thing we see is a section tag
+                    # _FIXME: this might present an issue for the cases where @desc is found directly one line below a paragraph (no empty line above it)
+                    #if ($graff eq '' && $line =~ /^#\s*\@desc/) {
+                    #    $line = '';
+                    #    prevline($text, $index);
+                    #} else {
+                    #    $graff = $graff . " $add_to_graff";
+                    #}
+                    $graff = $graff . " $add_to_graff";
+                }
+            }
+            default {
+                # End of a paragraph
 
-            # Ending the paragraph and appending it to the array
-            if ($graff ne '') {
-                $graff =~ s{\@desc}{}g; # Remove stray section tags
-                $graff = ltrim($graff);
-                $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
-                push(@pars, $graff);
-                $graff = '';
+                # Ended a paragraph with an open list
+                if ( defined $current_list{'type'} ) {
+                    printerr("Did not close list...closing list for you");
+                    goto CLOSELIST;
+                }
+
+                # Ending the paragraph and appending it to the array
+                if ($graff ne '') {
+                    $graff =~ s{\@desc}{}g; # Remove stray section tags
+                    $graff = ltrim($graff);
+                    $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
+                    push(@pars, $graff);
+                    $graff = '';
+                }
             }
         }
     } while (index($line, '#') == 0);
@@ -1082,8 +1109,6 @@ sub _ParseClass {
     if ($index > 0) {
         $index += length('@desc');
         $header{'description'} = _GetParagraphs($text, \$index);
-
-        # TODO: print the data here to check if the lists are properly structured
     }
 
     die q/Syntax error: no "extends" found in input/ unless ($text =~ /^extends[ \t]+(\w+)/m);
@@ -1144,3 +1169,101 @@ sub _ParseProperty {
 }
 
 1;
+
+__END__
+
+if ($line =~ /^#\s*\@list_begin\{(\w+)\}/) {
+    # Start list
+
+    my $list_type = $1;
+    if ($list_type ne 'unordered' && $list_type ne 'ordered') {
+        printerr("Invalid list type, must be ordered or unordered");
+        next;
+    }
+
+    %current_list = (type => $list_type, items => undef);
+    @current_list_items = ();
+    $current_item = undef;
+}
+elsif ($line =~ /^#[ \t]*\@item[ \t]+(.*)/) {
+    # Start list item
+
+    # First, close the previous item by appending it to the array
+    # TODO: Remove the error message
+    local $@;
+    if (not defined( eval($close_list_item) )) {
+        my $err = $@;
+        die "Error encountered: $err";
+    }
+    #if (ref($current_item) eq 'HASH') {
+    #    push(@current_list_items, $current_item);
+    #    echo "    Item Body: ", $current_item->{'text'};
+    #    $current_item = '';
+    #}
+
+    my $item_caption = $1 || 'UNDEFINED';
+    $current_item = { caption => $item_caption, text => '' };
+}
+elsif ($line =~ /^#[ \t]*\@list_end/) {
+    # End the current list
+
+    die "Can't close a list that was never opened" if (! defined $current_list{'type'});
+
+    # First, close the previous item by appending it to the array
+    die "No list items provided" unless (ref($current_item) eq 'HASH');
+
+    # TODO: Remove the error message
+    local $@;
+    if (not defined(eval($close_list_item))) {
+        my $err = $@;
+        die "Error encountered: $err";
+    }
+
+    # Add to list structure and clear temp array
+    $current_list{'items'} = \@current_list_items;
+    @current_list_items = ();
+
+    # Add list to the array of paragraphs
+    push(@pars, \%current_list);
+    %current_list = ();
+
+    exit 0;
+}
+elsif ($line =~ /^#\s*(.+)/) {
+    # Paragraph text
+
+    my $add_to_graff = $1;
+
+    if ( ref($current_item) eq 'HASH' ) {
+        # Add line to list item
+
+        my $item_text = $current_item->{'text'};
+        #$item_text = $item_text . $add_to_graff;
+        append($item_text, $add_to_graff);
+        $current_item->{'text'} = $item_text;
+    } else {
+        # Add line to current paragraph
+
+        # New paragraph, and the first thing we see is a section tag
+        # _FIXME: this might present an issue for the cases where @desc is found directly one line below a paragraph (no empty line above it)
+        #if ($graff eq '' && $line =~ /^#\s*\@desc/) {
+        #    $line = '';
+        #    prevline($text, $index);
+        #} else {
+        #    $graff = $graff . " $add_to_graff";
+        #}
+        $graff = $graff . " $add_to_graff";
+    }
+}
+else {
+    # End of a paragraph
+
+    # Ending the paragraph and appending it to the array
+    if ($graff ne '') {
+        $graff =~ s{\@desc}{}g; # Remove stray section tags
+        $graff = ltrim($graff);
+        $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
+        push(@pars, $graff);
+        $graff = '';
+    }
+}
