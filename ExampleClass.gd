@@ -14,6 +14,12 @@
 extends Object
 class_name NodeCustom
 
+## Process mode
+enum ProcessMode {
+    PROCESS_IDLE, ## Idle process
+    PROCESS_PHYSICS ## Physics process
+}
+
 #       Imported signals:
 #
 #       @list_begin unordered

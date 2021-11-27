@@ -882,6 +882,7 @@ sub _DetectDocType {
             $doc_type = 'constant';
         }
         # enumeration
+        # enum WORD {...}
         when (/^enum[ \t]+\w+[ \t]*\{(.|\n)*?\}/m) {
             $doc_type = 'enum';
         }
@@ -907,17 +908,41 @@ sub ParseEntity {
 }
 
 sub _ParseEnum {
+    use feature 'state';
+
     use Doctool::Enum;
     my $text = shift;
     my $enum = Doctool::Enum->new();
 
-    $enum->set('name', $2) if ( $text =~ /^enum([ \t])+(\w+)\1*/m );
+    state $x;
 
-    $enum->set('brief', $1) if ( $text =~ /^##[ \t]*(.+)/ );
+    # enum NAME ...
+    $enum->set('name', $2) if ($text =~ /^enum([ \t])+(\w+)\1*/m);
 
-    while ( $text =~ /(\w+)\s*=\s*(\S+)[ \t]*,?[ \t]*##[ \t]*(\N+)/mg ) {
-        $enum->add_constant($1, $2, $3);
+    # ## BRIEF...
+    $enum->set('brief', $1) if ($text =~ /^##[ \t]*(.+)/);
+
+    # $1:NAME ... ## $3:BRIEF
+    $x = 0;
+    while ($text =~ m/(\w+)([ \t])*.*##\2*(.+)/g) {
+        my $name = $1;
+        my $brief = $3;
+        my $pos = pos($text); # Save current search position
+        my $value;
+
+        if ($text =~ /=([ \t])*(.+)\1*(?:,|##)/g) {
+            $value = $2;
+        } else {
+            $value = $x++;
+        }
+        pos($text) = $pos; # Restore position
+
+        $enum->add_constant($name, $value, $brief);
     }
+
+    #while ( $text =~ /(\w+)\s*=\s*(\S+)[ \t]*,?[ \t]*##[ \t]*(\N+)/mg ) {
+    #    $enum->add_constant($1, $2, $3);
+    #}
 
     push($g_sections{'enums'}->@*, $enum);
 }
