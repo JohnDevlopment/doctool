@@ -145,8 +145,24 @@ Assuming `@link{google.com}`, the output will be: [google.com](google.com). With
 
 #### Data Tags
 
-There are no universl data tags; each type of docmentation contains its own unique set of data tags. Check the sections
+There are no universal data tags. Each type of docmentation contains its own unique set of data tags. Check the sections
 describing each type of doc to see their data tags.
+
+#### Other Tags
+
+Some tags just do not fit into the aforementioned categories. Such tags are listed here.
+
+&bullet; `item`  
+Syntax: `@item CAPTION`  
+Add an item to the current list with the given *CAPTION*. Before the next list item or `@list_end`, any text is added to the list item
+as the body text.
+
+&bullet; `list_begin`  
+Syntax: `@list_begin TYPE`  
+Begins a list. *TYPE* is either "ordered" or "unordered" to make an ordered or unordered list.
+
+&bullet; `list_end`  
+Ends the list previously opened
 
 ## Documentation Basics
 
