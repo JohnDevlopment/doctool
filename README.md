@@ -53,4 +53,4 @@ Doctool reads from a file written in GDScript and prints HTML to standard output
 
 ## Documentation
 
-Read the [documentation guide](wiki/Documentation-Guide) to learn how to create documentations for Godot scripts.
+Read the [documentation guide](https://github.com/JohnDevlopment/doctool/wiki/Documentation-Guide) to learn how to create documentations for Godot scripts.
