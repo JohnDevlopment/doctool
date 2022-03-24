@@ -10,6 +10,8 @@
 #       @item _exit_tree
 #         The @function _exit_tree() function is supported.
 #         It's called when the node exits the tree.
+#       @item random item
+#         This item demonstrates spaces in list item captions.
 #       @list_end
 extends Object
 class_name NodeCustom
@@ -45,7 +47,7 @@ signal renamed
 #
 #       @b Note: auto-generated names can contain a '@' character, which is reserved for unique names
 #       when adding a node with @function add_child(). When setting the name manually, all instances
-#       of '@' will be removed.
+#       of '@at' will be removed.
 var name : String = ""
 
 ## Called when a @class Node enters the scene tree.
