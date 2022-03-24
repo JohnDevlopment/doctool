@@ -553,7 +553,7 @@ sub _GetParagraphs {
     }
 EOF
 
-    use Data::Dumper;
+    #use Data::Dumper;
 
     my $line = '';
     do {
@@ -565,6 +565,7 @@ EOF
                 # Start a list
 
                 my $list_type = $1;
+
                 if ($list_type ne 'unordered' && $list_type ne 'ordered') {
                     printerr("Invalid list type, must be ordered or unordered");
                     next;
@@ -650,7 +651,7 @@ CLOSELIST:
                 if ($graff ne '') {
                     $graff =~ s{\@desc}{}g; # Remove stray section tags
                     $graff = ltrim($graff);
-                    $graff =~ s{\s\s+}{ }g; # Turn duplicate spaces into just one
+                    $graff =~ s{(\s)\s+}{$1}g; # Turn duplicate spaces into just one
                     push(@pars, $graff);
                     $graff = '';
                 }
