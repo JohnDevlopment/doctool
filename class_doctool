@@ -1156,7 +1156,7 @@ sub _ParseProperty {
     }
 
     # Name
-    die "REGEX failed" unless ($text =~ /^(?:export.*)?[ \t]*var[ \t]+(\w+)/m);
+    die "Failed to extract name from \"$text\"" unless ($text =~ /^.*var[ \t]+(\w+)/m);
     $prop->set('name', $1);
 
     # Property type
