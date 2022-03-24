@@ -597,10 +597,8 @@ EOF
                 # No open list
                 die "Can't close a list that was never opened" if (! defined $current_list{'type'});
 
-CLOSELIST:
-
                 # No items to add
-                die "No list items provided" unless (ref($current_item) eq 'HASH');
+CLOSELIST:      die "No list items provided" unless (ref($current_item) eq 'HASH');
 
                 eval $close_list_item;
 
