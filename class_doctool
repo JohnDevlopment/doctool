@@ -709,8 +709,10 @@ sub _ParseFormatTags {
         constant => '<code class="constant">%s</code>',
         enum => '<code class="enum">%s</code>',
         function => '<code class="function">%s</code>',
-        i => '<i>%s</i>'
+        i => '<i>%s</i>',
+        type => '<code class="class">%s</code>'
     );
+    # TODO: Add new tags: property, signal
 
     $$r_html =~ s/\@br/<br>/g;
 
