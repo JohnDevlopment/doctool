@@ -27,7 +27,7 @@ printcolor() {
 }
 
 onexit() {
-    test -f "$tmpfile" && rm -v $tmpfile
+    test -f "$tmpfile" && rm -v "$tmpfile"
 }
 
 openfile() {
