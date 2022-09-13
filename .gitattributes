@@ -1,4 +1,3 @@
-class_doctool   diff=perl
 .gitignore      export-ignore
 .gitattributes  export-ignore
 .gitmodules     export-ignore
