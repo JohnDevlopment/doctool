@@ -1,0 +1,109 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=4
+
+_global_script_classes=[ {
+"base": "KinematicBody2D",
+"class": "Actor",
+"language": "GDScript",
+"path": "res://classes/nodes/Actor.gd"
+}, {
+"base": "Resource",
+"class": "AudioPack",
+"language": "GDScript",
+"path": "res://classes/resources/AudioPack.gd"
+}, {
+"base": "Command",
+"class": "BranchCommand",
+"language": "GDScript",
+"path": "res://classes/nodes/commands/BranchCommand.gd"
+}, {
+"base": "Node",
+"class": "Command",
+"language": "GDScript",
+"path": "res://classes/nodes/Command.gd"
+}, {
+"base": "Node",
+"class": "CommandHandler",
+"language": "GDScript",
+"path": "res://classes/nodes/CommandHandler.gd"
+}, {
+"base": "BranchCommand",
+"class": "ConditionalBranchCommand",
+"language": "GDScript",
+"path": "res://classes/nodes/commands/ConditionalBranchCommand.gd"
+}, {
+"base": "Reference",
+"class": "CubicInterpolator",
+"language": "GDScript",
+"path": "res://classes/resources/CubicInterpolator.gd"
+}, {
+"base": "Node2D",
+"class": "DebugShape2D",
+"language": "GDScript",
+"path": "res://classes/nodes/DebugShape2D.gd"
+}, {
+"base": "Node2D",
+"class": "DistanceNotifier",
+"language": "GDScript",
+"path": "res://classes/nodes/DistanceNotifier.gd"
+}, {
+"base": "Actor",
+"class": "Enemy",
+"language": "GDScript",
+"path": "res://classes/nodes/Enemy.gd"
+}, {
+"base": "EditorScript",
+"class": "ReferenceCollector",
+"language": "GDScript",
+"path": "res://tools/ReferenceCollector.gd"
+}, {
+"base": "Resource",
+"class": "Stats",
+"language": "GDScript",
+"path": "res://classes/resources/Stats.gd"
+}, {
+"base": "Command",
+"class": "WaitCommand",
+"language": "GDScript",
+"path": "res://classes/nodes/commands/WaitCommand.gd"
+} ]
+_global_script_class_icons={
+"Actor": "",
+"AudioPack": "",
+"BranchCommand": "",
+"Command": "",
+"CommandHandler": "",
+"ConditionalBranchCommand": "",
+"CubicInterpolator": "",
+"DebugShape2D": "",
+"DistanceNotifier": "",
+"Enemy": "",
+"ReferenceCollector": "",
+"Stats": "",
+"WaitCommand": ""
+}
+
+[application]
+
+config/name="Doctool Godot Subproject"
+run/main_scene="res://Main.tscn"
+config/icon="res://icon.png"
+
+[gui]
+
+common/drop_mouse_on_gui_input_disabled=true
+
+[physics]
+
+common/enable_pause_aware_picking=true
+
+[rendering]
+
+environment/default_environment="res://default_env.tres"

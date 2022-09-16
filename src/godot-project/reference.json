@@ -1,0 +1,1823 @@
+{
+  "name": "Doctool Godot Subproject",
+  "description": "",
+  "version": "n/a",
+  "classes": [
+    {
+      "name": "Command",
+      "path": "res://classes/nodes/Command.gd",
+      "extends_class": [
+        "Node"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class Command",
+      "description": "# Base class for implementing commands\n  This class is abstract and should not be instanced directly;\n  rather it should be inherited from to define the action.",
+      "sub_classes": ["WaitCommand", "DeleteCommand"],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "active",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var active: bool",
+          "description": "# Whether the command is active or not."
+        },
+        {
+          "name": "user_data",
+          "data_type": "Dictionary",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var user_data: Dictionary",
+          "description": "# User-defined data."
+        },
+        {
+          "name": "root_node",
+          "data_type": "NodePath",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var root_node: NodePath",
+          "description": "# The root node for this command."
+        },
+        {
+          "name": "_root_node",
+          "data_type": "Node",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _root_node: Node",
+          "description": ""
+        }
+      ],
+      "signals": [
+
+      ],
+      "methods": [
+        {
+          "name": "_ready",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _ready() -> null",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "do_command",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func do_command()",
+          "description": "# Performs the action.\n Calls the virtual method @function{_do_command} to do the actual command.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "get_class",
+          "return_type": "String",
+          "rpc_mode": 0,
+          "signature": "func get_class() -> String",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "set_command_root_node",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_command_root_node(n: Node) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "n",
+              "type": "Node"
+            }
+          ]
+        },
+        {
+          "name": "vararg",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func vararg(_arg)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "_arg",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_do_command",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _do_command()",
+          "description": "# Override this function in your script to implement your own command.\n If a yield is encountered, the command handler pauses itself\n until said yield finishes.\n @virtual",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_set",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _set(property: String, value) -> bool",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            },
+            {
+              "name": "value",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_get",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get(property: String)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "_get_property_list",
+          "return_type": "Array",
+          "rpc_mode": 0,
+          "signature": "func _get_property_list() -> Array",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_get_configuration_warning",
+          "return_type": "String",
+          "rpc_mode": 0,
+          "signature": "func _get_configuration_warning() -> String",
+          "description": "",
+          "arguments": [
+
+          ]
+        }
+      ],
+      "static_functions": [
+
+      ]
+    },
+    {
+      "name": "Actor",
+      "path": "res://classes/nodes/Actor.gd",
+      "extends_class": [
+        "KinematicBody2D"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class Actor",
+      "description": "# Kinematic Actor type\n Extends the functionality of @class KinematicBody2D with gravity and a vector speed and velocity.\n By default, the physics process handles gravity with linear interpolation.\n In addition to the exported properties, there are some variables that you can access\n that are not exported to the editor.\n Here is a list of them:\n\n @code float gravity_value = 98 @br\n The maximum Y velocity the actor can have due to gravity. Defaults to the value of\n physics/2d/default_gravity in the project settings.\n\n @code Vector2 velocity = Vector2() @br\n The current velocity of the actor. For the most part, this variable must be manually\n updated, except that the Y component is affected by gravity every physics step.",
+      "sub_classes": [
+
+      ],
+      "constants": [
+        {
+          "name": "GRAVITY_STEP",
+          "value": 13.4,
+          "data_type": "float",
+          "signature": "const GRAVITY_STEP: float = 13.4",
+          "description": ""
+        }
+      ],
+      "members": [
+        {
+          "name": "speed_cap",
+          "data_type": "Vector2",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var speed_cap: Vector2",
+          "description": "# Speed cap of the actor\n The max speed of the actor. As this property\n is not acted upon in @class Actor, it is up to the programmer\n whether to use it. That being said, it is meant to be used to\n cap the actor's speed, hence the name."
+        },
+        {
+          "name": "snap_length",
+          "data_type": "float",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var snap_length: float",
+          "description": "# Length to snap to the floor\n This is the margin for the actor to snap to a colliding body, usually the floor or a platform."
+        },
+        {
+          "name": "gravity_enabled",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var gravity_enabled: bool",
+          "description": "# Whether gravity is enabled."
+        },
+        {
+          "name": "gravity_value",
+          "data_type": "float",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var gravity_value: float",
+          "description": ""
+        },
+        {
+          "name": "velocity",
+          "data_type": "Vector2",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var velocity: Vector2",
+          "description": ""
+        },
+        {
+          "name": "_enabled",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _enabled: bool",
+          "description": ""
+        },
+        {
+          "name": "_debug_autodelete",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _debug_autodelete: bool",
+          "description": ""
+        }
+      ],
+      "signals": [
+
+      ],
+      "methods": [
+        {
+          "name": "enable_actor",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func enable_actor(flag: bool) -> null",
+          "description": "# Enable/disable the @class Actor\n Call this function to enable or disable the actor.\n Affects the visibility and collision of the actor.\n The argument @a flag can be true or false; true to enable\n the actor's collision and rendering, or false to disable it.\n\n The virtual method @function _enable_actor() is called if it is\n implemented in the subclass.",
+          "arguments": [
+            {
+              "name": "flag",
+              "type": "bool"
+            }
+          ]
+        },
+        {
+          "name": "enable_collision",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func enable_collision(flag: bool) -> null",
+          "description": "# Enable/disabled collision\n Call this function to enable or disable the actor's collision.\n The argument @a flag can be true or false; true to enable\n the actor's collision, or false to disable it.",
+          "arguments": [
+            {
+              "name": "flag",
+              "type": "bool"
+            }
+          ]
+        },
+        {
+          "name": "get_center",
+          "return_type": "Vector2",
+          "rpc_mode": 0,
+          "signature": "func get_center() -> Vector2",
+          "description": "# Returns the center of the actor\n Call this function to return the center of the actor. In its base form,\n this function returns an empty Vector2, but you can override it to return the actual\n center of your actor.\n @virtual\n @const",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "is_enabled",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func is_enabled() -> bool",
+          "description": "# Returns whether the actor is currently enabled.\n @const",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_ready",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _ready() -> null",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_init",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _init() -> null",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_enter_tree",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _enter_tree() -> null",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_set",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _set(property, value)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "var"
+            },
+            {
+              "name": "value",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_get",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get(property)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_get_property_list",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get_property_list()",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_physics_process",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _physics_process(_delta)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "_delta",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_snap_to_ground",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _snap_to_ground()",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_enable_collision",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _enable_collision(_flag: bool) -> null",
+          "description": "# Override this function to customize @function enable_collision().\n This function is called at the end of @function enable_collision().\n You can override this function to customize it.\n @virtual",
+          "arguments": [
+            {
+              "name": "_flag",
+              "type": "bool"
+            }
+          ]
+        }
+      ],
+      "static_functions": [
+        {
+          "name": "astaticmethod",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func astaticmethod(a: int, b: float = 0.3) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "a",
+              "type": "int"
+            },
+            {
+              "name": "b",
+              "type": "float",
+              "default_value": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "DebugShape2D",
+      "path": "res://classes/nodes/DebugShape2D.gd",
+      "extends_class": [
+        "Node2D"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class DebugShape2D",
+      "description": "",
+      "sub_classes": [
+
+      ],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "enabled",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var enabled: bool",
+          "description": ""
+        },
+        {
+          "name": "_drawing_commands",
+          "data_type": "Array",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _drawing_commands: Array",
+          "description": ""
+        }
+      ],
+      "signals": [
+
+      ],
+      "methods": [
+        {
+          "name": "_draw",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _draw() -> null",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_get",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get(property: String)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "_set",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _set(property: String, value) -> bool",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            },
+            {
+              "name": "value",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_get_property_list",
+          "return_type": "Array",
+          "rpc_mode": 0,
+          "signature": "func _get_property_list() -> Array",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "add_rect",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func add_rect(rect: Rect2, color: Color, filled: bool = false, width: float = 1, antialiased: bool = false) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "rect",
+              "type": "Rect2"
+            },
+            {
+              "name": "color",
+              "type": "Color"
+            },
+            {
+              "name": "filled",
+              "type": "bool",
+              "default_value": false
+            },
+            {
+              "name": "width",
+              "type": "float",
+              "default_value": 1
+            },
+            {
+              "name": "antialiased",
+              "type": "bool",
+              "default_value": false
+            }
+          ]
+        }
+      ],
+      "static_functions": [
+
+      ]
+    },
+    {
+      "name": "Enemy",
+      "path": "res://classes/nodes/Enemy.gd",
+      "extends_class": [
+        "Actor"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class Enemy",
+      "description": "# An enemy actor type.\n  In order for this class work properly, there are a few things that\n       need to be done. For example, the @i stats object must be initialized.\n       Do this by calling its @function init_stats() method, passing it the\n       toplevel Enemy as its argument.",
+      "sub_classes": [
+
+      ],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "stats",
+          "data_type": "Stats",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var stats: Stats",
+          "description": "# The stats of the @class enemy\n @type Stats"
+        },
+        {
+          "name": "armor_time",
+          "data_type": "float",
+          "default_value": 1,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var armor_time: float = 1",
+          "description": "# The amount of time the @class Enemy is invincible after taking damage\n @type float"
+        },
+        {
+          "name": "invincibility_timer",
+          "data_type": "Timer",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var invincibility_timer: Timer",
+          "description": ""
+        },
+        {
+          "name": "direction",
+          "data_type": "Vector2",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var direction: Vector2",
+          "description": ""
+        }
+      ],
+      "signals": [
+        {
+          "name": "defeated",
+          "arguments": [
+
+          ],
+          "signature": "signal defeated()",
+          "description": ""
+        }
+      ],
+      "methods": [
+        {
+          "name": "_enter_tree",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _enter_tree()",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_get",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get(property)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_get_property_list",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get_property_list()",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_ready",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _ready()",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_set",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _set(property, value)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "var"
+            },
+            {
+              "name": "value",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_on_damaged",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _on_damaged(_stats: Stats) -> null",
+          "description": "# Called after the enemy has taken damaged.\n @virtual\n     The attacking actor's stats are contained in @a _stats.",
+          "arguments": [
+            {
+              "name": "_stats",
+              "type": "Stats"
+            }
+          ]
+        },
+        {
+          "name": "_should_damage",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _should_damage() -> bool",
+          "description": "# Returns true if the enemy should take damage.\n @virtual\n     This function is called by @function should_damage(). It returns\n          true by default but can be overriden to customize its behavior.\n          Used for enemy-specific damage calculations.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "decide_damage",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func decide_damage(other_stats: Stats) -> null",
+          "description": "# Called to decide the amount of damage to take based on the attacker's stats.\n  This function should be called by another actor dealing damage to this one.\n       The values in @a other_stats are used in conjuction with @property stats to\n       decide whether the @class Enemy should take damage or not, and how much.",
+          "arguments": [
+            {
+              "name": "other_stats",
+              "type": "Stats"
+            }
+          ]
+        },
+        {
+          "name": "direction_to_player",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func direction_to_player()",
+          "description": "# Calculates the enemy's direction and distance to the player.\n @const\n  Returns a dictionary with the direction and distance to the player, or null\n       if the player does not exist inside the tree.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "emit_defeated",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func emit_defeated() -> null",
+          "description": "# Emits the @signal defeated signal.\n @const",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "get_health",
+          "return_type": "int",
+          "rpc_mode": 0,
+          "signature": "func get_health() -> int",
+          "description": "# Returns the current health of the enemy.\n @const",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "get_meta_or_default",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func get_meta_or_default(name: String, default = null)",
+          "description": "# Returns a metadata value with a fallback value.\n @const\n   Returns the object's metadata entry for the given @a name. If @a name\n        does not exist, then @a default is returned.",
+          "arguments": [
+            {
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "name": "default",
+              "type": "var",
+              "default_value": null
+            }
+          ]
+        },
+        {
+          "name": "should_damage",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func should_damage() -> bool",
+          "description": "# Returns true if the @class Enemy should take damage\n @const\n     This function is called by @function decide_damage; if this returns\n          true, the @class Enemy takes damage according to the Stats of the other Actor.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "make_invincible",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func make_invincible(time: float = -1) -> null",
+          "description": "# Start the invincibility timer.\n  The timer is set to @a time seconds. If @a time is less than zero,\n       @property armor_time is used instead.",
+          "arguments": [
+            {
+              "name": "time",
+              "type": "float",
+              "default_value": -1
+            }
+          ]
+        }
+      ],
+      "static_functions": [
+
+      ]
+    },
+    {
+      "name": "CommandHandler",
+      "path": "res://classes/nodes/CommandHandler.gd",
+      "extends_class": [
+        "Node"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class CommandHandler",
+      "description": "# A node that executes a bunch of commands in a tree structure.",
+      "sub_classes": [
+
+      ],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "active",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var active: bool",
+          "description": "# Indicates whether the command handler is active.\n @type bool"
+        },
+        {
+          "name": "root_node",
+          "data_type": "NodePath",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var root_node: NodePath",
+          "description": "# The root node.\n @type NodePath"
+        },
+        {
+          "name": "_current_command",
+          "data_type": "int",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _current_command: int",
+          "description": ""
+        },
+        {
+          "name": "_lock",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _lock: bool",
+          "description": ""
+        }
+      ],
+      "signals": [
+        {
+          "name": "started",
+          "arguments": [
+
+          ],
+          "signature": "signal started()",
+          "description": "# Emitted to signify that the command handler has started processing."
+        },
+        {
+          "name": "finished",
+          "arguments": [
+
+          ],
+          "signature": "signal finished()",
+          "description": "# Emitted to signify that the handler has finished processing commands."
+        }
+      ],
+      "methods": [
+        {
+          "name": "_ready",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _ready() -> null",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_get_property_list",
+          "return_type": "Array",
+          "rpc_mode": 0,
+          "signature": "func _get_property_list() -> Array",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_set",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _set(property: String, value) -> bool",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            },
+            {
+              "name": "value",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "_get",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get(property: String)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "get_class",
+          "return_type": "String",
+          "rpc_mode": 0,
+          "signature": "func get_class() -> String",
+          "description": "func _clean_node_path(path: NodePath) -> NodePath:\n\tvar clean_path = PoolStringArray([''])\n\n\tfor i in path.get_name_count():\n\t\tvar _name := path.get_name(i)\n\t\tif _name.find('@') < 0:\n\t\t\tclean_path.push_back(_name)\n\n\treturn NodePath( clean_path.join('/') )",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "do_commands",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func do_commands() -> var",
+          "description": "# Executes each command in the tree.",
+          "arguments": [
+
+          ]
+        }
+      ],
+      "static_functions": [
+
+      ]
+    },
+    {
+      "name": "DistanceNotifier",
+      "path": "res://classes/nodes/DistanceNotifier.gd",
+      "extends_class": [
+        "Node2D"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class DistanceNotifier",
+      "description": "# Measures the distances between two things\n   This node measures the distance between itself and the node specified\n        by the @a other_node property.\n\n        What exactly gets measured depends on the @i component property. Either\n        the X or Y distance between two nodes can be checked, or both. Alternatively,\n        the linear distance between the two nodes can be checked.",
+      "sub_classes": [
+
+      ],
+      "constants": [
+        {
+          "name": "FLOAT",
+          "value": 3,
+          "data_type": "int",
+          "signature": "const FLOAT: int = 3",
+          "description": "# Calculate the linear difference between two nodes\n @type int"
+        },
+        {
+          "name": "BOTH_COMPONENTS",
+          "value": 2,
+          "data_type": "int",
+          "signature": "const BOTH_COMPONENTS: int = 2",
+          "description": "# Measure both the X and Y distances\n @type int"
+        },
+        {
+          "name": "Y_COMPONENT",
+          "value": 1,
+          "data_type": "int",
+          "signature": "const Y_COMPONENT: int = 1",
+          "description": "# Measure only the Y distance\n @type int"
+        },
+        {
+          "name": "X_COMPONENT",
+          "value": 0,
+          "data_type": "int",
+          "signature": "const X_COMPONENT: int = 0",
+          "description": "# Measure only the X distance\n @type int"
+        }
+      ],
+      "members": [
+        {
+          "name": "other_node",
+          "data_type": "NodePath",
+          "default_value": "",
+          "setter": "set_other_node",
+          "getter": "",
+          "export": false,
+          "signature": "var other_node: NodePath = \"\"",
+          "description": "# The other node being measured.\n @type NodePath\n @setter set_other_node(v)"
+        },
+        {
+          "name": "component",
+          "data_type": "int",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var component: int",
+          "description": "# This determines what gets measures exactly.\n @type int\n       Valid values are: @code X_COMPONENT, @code Y_COMPONENT,\n            @code BOTH_COMPONENTS, or @code FLOAT. @code X_COMPONENT and\n            @code Y_COMPONENT are obvious, but @code BOTH_COMPONENTS and\n            @code FLOAT need explaining.\n\n            With @code BOTH_COMPONENTS, both the X and Y component of @a threshold\n            are checked: the X and Y distance between two nodes both need to be\n            less than or equal to the threshold's X and Y component, respectively,\n            in order to be considered \"within range\".\n\n            With @code FLOAT, the linear distance between the two nodes is\n            calculated. Imagine a line between the connected nodes: the length\n            of that line is the distance being checked under this mode. In this\n            case, the X component of @a threshold is used as the threshold."
+        },
+        {
+          "name": "threshold",
+          "data_type": "Vector2",
+          "default_value": "(0, 0)",
+          "setter": "set_threshold",
+          "getter": "",
+          "export": false,
+          "signature": "var threshold: Vector2 = \"(0, 0)\"",
+          "description": "# Maximum distance between nodes\n @type   Vector2\n @setter set_threshold(value)\n    What you put in here depends on @a component: if @code X_COMPONENT\n         or @code Y_COMPONENT, either the X component or the Y component\n         are used; if @code BOTH_COMPONENTS, both components are used; if\n         @code FLOAT, the X component is used to hold a linear distance.\n\n         In the case of @code FLOAT, the linear distance refers to the result\n         of @function{Vector2::distance}."
+        },
+        {
+          "name": "editor_line_color",
+          "data_type": "Color",
+          "default_value": null,
+          "setter": "set_editor_line_color",
+          "getter": "",
+          "export": false,
+          "signature": "var editor_line_color: Color",
+          "description": "# The color of the line when out of range\n @type Color\n @setter set_editor_line_color(value)"
+        },
+        {
+          "name": "editor_line_range_color",
+          "data_type": "Color",
+          "default_value": null,
+          "setter": "set_editor_line_range_color",
+          "getter": "",
+          "export": false,
+          "signature": "var editor_line_range_color: Color",
+          "description": "# The color of the line when in range\n @type Color\n @setter set_editor_line_color(value)"
+        },
+        {
+          "name": "editor_line_width",
+          "data_type": "float",
+          "default_value": null,
+          "setter": "set_editor_line_width",
+          "getter": "",
+          "export": false,
+          "signature": "var editor_line_width: float",
+          "description": "# Thickness of the line drawn between nodes\n @type float\n @setter set_editor_line_width(value)"
+        },
+        {
+          "name": "editor_radius",
+          "data_type": "float",
+          "default_value": null,
+          "setter": "set_editor_radius",
+          "getter": "",
+          "export": false,
+          "signature": "var editor_radius: float",
+          "description": "# Radius of the circle\n @type float\n @setter set_editor_radius(value)"
+        },
+        {
+          "name": "editor_circle_color",
+          "data_type": "Color",
+          "default_value": null,
+          "setter": "set_editor_circle_color",
+          "getter": "",
+          "export": false,
+          "signature": "var editor_circle_color: Color",
+          "description": "# Color of the circle\n @type Color\n @setter set_editor_circle_color(value)"
+        },
+        {
+          "name": "_other_node",
+          "data_type": "Node2D",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _other_node: Node2D",
+          "description": ""
+        },
+        {
+          "name": "_distance_met",
+          "data_type": "bool",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _distance_met: bool",
+          "description": ""
+        }
+      ],
+      "signals": [
+        {
+          "name": "entered_range",
+          "arguments": [
+            "node"
+          ],
+          "signature": "signal entered_range(node)",
+          "description": "# Emitted to signify that the other @a node has come within @a threshold."
+        },
+        {
+          "name": "exited_range",
+          "arguments": [
+            "node"
+          ],
+          "signature": "signal exited_range(node)",
+          "description": "# Emitted to signify that the other @a node has exceeded @a threshold."
+        }
+      ],
+      "methods": [
+        {
+          "name": "_editor_check_distance",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _editor_check_distance() -> bool",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_check_distance_met",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _check_distance_met() -> bool",
+          "description": "Returns true if the other node is within *threshold*",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_check_valid_other_node",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _check_valid_other_node() -> bool",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_get",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _get(property: String)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "_get_configuration_warning",
+          "return_type": "String",
+          "rpc_mode": 0,
+          "signature": "func _get_configuration_warning() -> String",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_get_property_list",
+          "return_type": "Array",
+          "rpc_mode": 0,
+          "signature": "func _get_property_list() -> Array",
+          "description": "",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "_notification",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _notification(what: int) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "what",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "name": "_set",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func _set(property: String, value) -> bool",
+          "description": "",
+          "arguments": [
+            {
+              "name": "property",
+              "type": "String"
+            },
+            {
+              "name": "value",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "get_vector",
+          "return_type": "Vector2",
+          "rpc_mode": 0,
+          "signature": "func get_vector() -> Vector2",
+          "description": "# Returns the distance between this and the other node.\n   This function checks the distance between this node and the one\n        referenced by @a other_node. The return valued is a Vector2 specifying\n        the positive distance between the two.\n\n        If @a other_node is empty or points to an\n        invalid node, Vector2() is returned and an error is emitted.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "is_within_range",
+          "return_type": "bool",
+          "rpc_mode": 0,
+          "signature": "func is_within_range() -> bool",
+          "description": "# Returns true if the other node is within range.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "set_editor_circle_color",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_editor_circle_color(c: Color) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "c",
+              "type": "Color"
+            }
+          ]
+        },
+        {
+          "name": "set_editor_line_color",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_editor_line_color(lc: Color) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "lc",
+              "type": "Color"
+            }
+          ]
+        },
+        {
+          "name": "set_editor_line_range_color",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_editor_line_range_color(lbc: Color) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "lbc",
+              "type": "Color"
+            }
+          ]
+        },
+        {
+          "name": "set_editor_line_width",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_editor_line_width(w: float) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "w",
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "name": "set_editor_radius",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_editor_radius(rad: float) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "rad",
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "name": "set_other_node",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_other_node(v) -> null",
+          "description": "# Set the @a other_node property.\n   Sets the node to be measured by @class DistanceNotifier. If @a v is\n        a Node2D-derived type, the path is derived from its position in the tree.",
+          "arguments": [
+            {
+              "name": "v",
+              "type": "var"
+            }
+          ]
+        },
+        {
+          "name": "set_threshold",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func set_threshold(t: Vector2) -> null",
+          "description": "",
+          "arguments": [
+            {
+              "name": "t",
+              "type": "Vector2"
+            }
+          ]
+        }
+      ],
+      "static_functions": [
+
+      ]
+    },
+    {
+      "name": "AudioPack",
+      "path": "res://classes/resources/AudioPack.gd",
+      "extends_class": [
+        "Resource"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class AudioPack",
+      "description": "",
+      "sub_classes": [
+
+      ],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "name",
+          "data_type": "var",
+          "default_value": "",
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var name = \"\"",
+          "description": "The name of the stream."
+        },
+        {
+          "name": "stream",
+          "data_type": "AudioStream",
+          "default_value": "[Object:null]",
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var stream: AudioStream = \"[Object:null]\"",
+          "description": "The audio stream itself."
+        },
+        {
+          "name": "volume_db",
+          "data_type": "float",
+          "default_value": 0,
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var volume_db: float = 0",
+          "description": "The volume of the stream."
+        }
+      ],
+      "signals": [
+
+      ],
+      "methods": [
+
+      ],
+      "static_functions": [
+
+      ]
+    },
+    {
+      "name": "CubicInterpolator",
+      "path": "res://classes/resources/CubicInterpolator.gd",
+      "extends_class": [
+        "Reference"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class CubicInterpolator",
+      "description": "# A manually-control cubic interpolator\n  Use this class if you want to interpolate a value\n       and you want to be able to advance the step manually.",
+      "sub_classes": [
+
+      ],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "_initial_value",
+          "data_type": "var",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _initial_value",
+          "description": ""
+        },
+        {
+          "name": "_current_value",
+          "data_type": "var",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _current_value",
+          "description": ""
+        },
+        {
+          "name": "_final_value",
+          "data_type": "var",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _final_value",
+          "description": ""
+        },
+        {
+          "name": "_delta_value",
+          "data_type": "var",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _delta_value",
+          "description": ""
+        },
+        {
+          "name": "_type",
+          "data_type": "int",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _type: int",
+          "description": ""
+        },
+        {
+          "name": "_elapsed",
+          "data_type": "float",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _elapsed: float",
+          "description": ""
+        },
+        {
+          "name": "_duration",
+          "data_type": "float",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var _duration: float",
+          "description": ""
+        },
+        {
+          "name": "finished",
+          "data_type": "bool",
+          "default_value": true,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var finished: bool = true",
+          "description": "# Indicate whether the interpolation is finished or not.\n @type bool"
+        }
+      ],
+      "signals": [
+
+      ],
+      "methods": [
+        {
+          "name": "get_type",
+          "return_type": "int",
+          "rpc_mode": 0,
+          "signature": "func get_type() -> int",
+          "description": "# Returns the type of value being interpolated.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "get_value",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func get_value()",
+          "description": "# Returns the current value of the interpolation.",
+          "arguments": [
+
+          ]
+        },
+        {
+          "name": "start_interpolation",
+          "return_type": "int",
+          "rpc_mode": 0,
+          "signature": "func start_interpolation(from, to, duration: float) -> int",
+          "description": "# Initialize an interpolation from one value to the other.\n  The interpolation lasts for @a duration seconds.\n       @a from and @a to must be of the same type or be a float and an integer.\n       (In the second case @a to is converted to the type of @a from).",
+          "arguments": [
+            {
+              "name": "from",
+              "type": "var"
+            },
+            {
+              "name": "to",
+              "type": "var"
+            },
+            {
+              "name": "duration",
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "name": "step",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func step(delta: float)",
+          "description": "# Call this function to advance the interpolation by one \"step\".\n  Pass in the delta value of whichever process you're doing it in.\n       If you don't have access to this value you can call\n       @function get_physics_process_delta_time or\n       @function get_process_delta_time to get this value.\n\n       When the interpolation is finished, @property finished will be set to true,\n       so be sure to check for that.",
+          "arguments": [
+            {
+              "name": "delta",
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "name": "_to_string",
+          "return_type": "String",
+          "rpc_mode": 0,
+          "signature": "func _to_string() -> String",
+          "description": "",
+          "arguments": [
+
+          ]
+        }
+      ],
+      "static_functions": [
+        {
+          "name": "_ease_out",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _ease_out(time: float, initial_value: float, delta_value: float, duration: float)",
+          "description": "",
+          "arguments": [
+            {
+              "name": "time",
+              "type": "float"
+            },
+            {
+              "name": "initial_value",
+              "type": "float"
+            },
+            {
+              "name": "delta_value",
+              "type": "float"
+            },
+            {
+              "name": "duration",
+              "type": "float"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "path": "res://classes/resources/Stats.gd",
+      "extends_class": [
+        "Resource"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class Stats",
+      "description": "# A data structure representing the stats of an actor.\n  Each and every stat listed is meant to apply to the owner\n       of the @class Stat.",
+      "sub_classes": [
+
+      ],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "max_health",
+          "data_type": "int",
+          "default_value": 5,
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var max_health: int = 5",
+          "description": "# The max health of the owner.\n @type int\n  Clamped to the range [1,500]."
+        },
+        {
+          "name": "max_mana",
+          "data_type": "int",
+          "default_value": 0,
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var max_mana: int = 0",
+          "description": "# The max mana (magic points) of the owner.\n @type int\n  Clamped to the range [1,500]."
+        },
+        {
+          "name": "attack",
+          "data_type": "int",
+          "default_value": 1,
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var attack: int = 1",
+          "description": "# The attack power of the owner.\n @type int\n  Clamped to the range [1,100]."
+        },
+        {
+          "name": "defense",
+          "data_type": "int",
+          "default_value": 0,
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var defense: int = 0",
+          "description": "# The defense power of the owner\n @type int\n  Clamped to the range [0,100]."
+        },
+        {
+          "name": "owner_name",
+          "data_type": "String",
+          "default_value": "",
+          "setter": "",
+          "getter": "",
+          "export": true,
+          "signature": "export var owner_name: String = \"\"",
+          "description": "# The name of the owner.\n @type String"
+        },
+        {
+          "name": "health",
+          "data_type": "int",
+          "default_value": 0,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var health: int = 0",
+          "description": "# The current health of the owner.\n @type int"
+        },
+        {
+          "name": "mana",
+          "data_type": "int",
+          "default_value": 0,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var mana: int = 0",
+          "description": "# The current mana of the owner.\n @type int"
+        }
+      ],
+      "signals": [
+
+      ],
+      "methods": [
+        {
+          "name": "calculate_damage",
+          "return_type": "int",
+          "rpc_mode": 0,
+          "signature": "func calculate_damage(other_stats: Stats) -> int",
+          "description": "# The central function for calculating damage.\n  The attacker's @a other_stats and this class'\n       stats are combined in a math calculation to determine\n       how much damage the owner should take.\n       The result of that calculation is returned.",
+          "arguments": [
+            {
+              "name": "other_stats",
+              "type": "Stats"
+            }
+          ]
+        },
+        {
+          "name": "_init",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _init(data: Dictionary) -> null",
+          "description": "func get_meta_or_default(name: String, default = null):\n\tif has_meta(name):\n\t\treturn get_meta(name)\n\treturn default",
+          "arguments": [
+            {
+              "name": "data",
+              "type": "Dictionary"
+            }
+          ]
+        },
+        {
+          "name": "init_stats",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func init_stats(owner: Object)",
+          "description": "# Initialize the stats of the @a owner.\n  This should be called either when the owner is ready or when it enters\n       scene tree. @a owner is, as implied, the actor that owns these stats.",
+          "arguments": [
+            {
+              "name": "owner",
+              "type": "Object"
+            }
+          ]
+        },
+        {
+          "name": "_to_string",
+          "return_type": "var",
+          "rpc_mode": 0,
+          "signature": "func _to_string()",
+          "description": "",
+          "arguments": [
+
+          ]
+        }
+      ],
+      "static_functions": [
+
+      ]
+    },
+    {
+      "name": "Game.gd",
+      "path": "res://classes/singletons/Game.gd",
+      "extends_class": [
+        "Node"
+      ],
+      "extends_file": "",
+      "icon": "",
+      "signature": "class Game.gd",
+      "description": "# Game-wide functions and values.\n @name Game\n @singleton",
+      "sub_classes": [
+
+      ],
+      "constants": [
+
+      ],
+      "members": [
+        {
+          "name": "screen_size",
+          "data_type": "Vector2",
+          "default_value": null,
+          "setter": "",
+          "getter": "",
+          "export": false,
+          "signature": "var screen_size: Vector2",
+          "description": "# The size of the screen (initialized on game load).\n @type Vector2"
+        }
+      ],
+      "signals": [
+        {
+          "name": "changed_game_param",
+          "arguments": [
+            "param",
+            "value"
+          ],
+          "signature": "signal changed_game_param(param, value)",
+          "description": "# Indicates that a game parameter has changed.\n @arg String  param The parameter that was changed.\n @arg Variant value The value @a param was changed to.\n  This signal is emitted when certain functions are called. Which function\n       was called is indicated by @a param.\n\n       Param: tree_paused@br\n       Type:  bool@br\n       Emitted when @function set_paused() is called.\n\n       Param: changing_scene@br\n       Type:  String@br\n       Emitted when the when @function go_to_scene() is called. Can be used to\n       evaluate code when the scene is about to change."
+        }
+      ],
+      "methods": [
+        {
+          "name": "go_to_scene",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func go_to_scene(scene: String) -> null",
+          "description": "# Change scenes.\n  Switch to the given @a scene. Emits the @code changed_game_param signal.",
+          "arguments": [
+            {
+              "name": "scene",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "_ready",
+          "return_type": "null",
+          "rpc_mode": 0,
+          "signature": "func _ready() -> null",
+          "description": "",
+          "arguments": [
+
+          ]
+        }
+      ],
+      "static_functions": [
+
+      ]
+    }
+  ]
+}
