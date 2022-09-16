@@ -1,2 +1,4 @@
 *.gd
 *.sh
+*~
+__pycache__
