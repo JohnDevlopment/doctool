@@ -1,9 +1,9 @@
 # Main module
 
-from .parser import parse
-from .utils import print_error, list2dict
-from .exceptions import InvalidArgumentError, MissingFieldWarning
-from .formatter.text import TextFormatter
+from doctool.parser import parse
+from doctool.utils import print_error, list2dict
+from doctool.exceptions import InvalidArgumentError, MissingFieldWarning
+from doctool.formatter.text import TextFormatter
 from pathlib import Path, PurePath
 import sys, re
 
